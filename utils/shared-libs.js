@@ -2,9 +2,13 @@ const fs = require('fs');
 
 // Get executable argument
 let executable = null;
+let output_name = "shared-libs.zip";
 process.argv.forEach(function (val, index, array) {
     if (index == 2) {
         executable = val;
+    }
+    if (index == 3) {
+        output_name = val;
     }
 });
 if (executable == null) {
@@ -55,7 +59,7 @@ async function analize() {
     }
     await copyFile(executable, DEST_DIR);
     // Zip folder
-    const zipRes = await runExecutable("zip", ["-r", "shared-libs.zip", DEST_DIR]);
+    const zipRes = await runExecutable("zip", ["-r", output_name, DEST_DIR]);
 }
 
 analize();

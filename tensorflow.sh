@@ -52,3 +52,4 @@ cmake --build . -j 4
 
 node /home/ec2-user/tensorflow-examples/utils/shared-libs.js /home/ec2-user/tensorflow-examples/minimal-tf-build/minimal
 
+aws s3api put-object --bucket ejfdelgado-simple --key images/shared-libs.zip --body hello
