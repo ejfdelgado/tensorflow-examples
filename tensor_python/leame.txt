@@ -1,0 +1,4 @@
+https://www.tensorflow.org/install/pip#virtual-environment-install
+
+source /home/ejfdelgado/venv/bin/activate
+deactivate
