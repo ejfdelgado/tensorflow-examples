@@ -7,7 +7,8 @@ cmake_minimum_required(VERSION 3.16)
 project(minimal C CXX)
 
 SET(ABSL_PROPAGATE_CXX_STD ON)
-SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
+#SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
+SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
 add_subdirectory(
   "${TENSOR_FLOW_SRC}/tensorflow/tensorflow/lite"
