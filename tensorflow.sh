@@ -23,6 +23,12 @@ chmod +x bazel-5.1.1-installer-linux-x86_64.sh
 ./bazel-5.1.1-installer-linux-x86_64.sh --user
 #source /home/ec2-user/.bazel/bin/bazel-complete.bash
 
+# Install node
+wget https://rpm.nodesource.com/setup_16.x
+chmod +x setup_16.x
+sudo ./setup_16.x
+sudo yum install -y nodejs
+
 # Build Tensorflow with Bazel
 git clone https://github.com/tensorflow/tensorflow.git
 cd tensorflow
@@ -40,3 +46,6 @@ mkdir minimal-tf-build
 cd minimal-tf-build
 cmake ../minimal-tf
 cmake --build . -j 4
+
+# Test
+./minimal ../tensor_python/models/petals.tflite 5.0 3.2 1.2 0.2
