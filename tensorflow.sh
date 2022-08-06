@@ -49,3 +49,6 @@ cmake --build . -j 4
 
 # Test
 ./minimal ../tensor_python/models/petals.tflite 5.0 3.2 1.2 0.2
+
+node /home/ec2-user/tensorflow-examples/utils/shared-libs.js /home/ec2-user/tensorflow-examples/minimal-tf-build/minimal
+

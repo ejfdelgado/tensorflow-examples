@@ -53,6 +53,7 @@ async function analize() {
     for (let i = 0; i < pathFiles.length; i++) {
         await copyFile(pathFiles[i], DEST_DIR);
     }
+    await copyFile(executable, DEST_DIR);
     // Zip folder
     const zipRes = await runExecutable("zip", ["-r", "shared-libs.zip", DEST_DIR]);
 }
