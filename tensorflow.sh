@@ -39,6 +39,7 @@ mkdir opencv-build
 cd opencv-build
 cmake  ../opencv/opencv-4.x
 make -j 4
+#export OpenCV_DIR=/home/ejfdelgado/desarrollo/vaale/build
 export OpenCV_DIR=/home/ec2-user/opencv-build
 
 cd ..
