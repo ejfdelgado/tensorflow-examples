@@ -5,25 +5,51 @@
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/optional_debug_tools.h"
 
+// https://gist.github.com/WesleyCh3n/9653610bc384d15e0d9fc86b453751c4
 // https://www.tensorflow.org/lite/examples
 //  cmake --build . -j 4
 //  Usage:
-//  ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/mobilenet/mobilenet_v1_1.0_224_quant.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cat.jpg
+//  ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/mobilenet/mobilenet_v1_1.0_224_quant.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/bee.jpg
 //  ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/yolov4-416-fp32.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cat.jpg
-
 
 using namespace cv;
 using namespace std;
 
 typedef cv::Point3_<float> Pixel;
 
-const uint OUTDIM = 128;
 
 void normalize(Pixel &pixel)
 {
   pixel.x = ((pixel.x / 255.0) - 0.5) * 2.0;
   pixel.y = ((pixel.y / 255.0) - 0.5) * 2.0;
   pixel.z = ((pixel.z / 255.0) - 0.5) * 2.0;
+}
+
+/*
+void normalize(Pixel &pixel)
+{
+  pixel.x = (pixel.x / 255.0);
+  pixel.y = (pixel.y / 255.0);
+  pixel.z = (pixel.z / 255.0);
+}
+*/
+
+auto matPreprocess(cv::Mat src, uint width, uint height) -> cv::Mat
+{
+  // convert to float; BGR -> RGB
+  cv::Mat dst;
+  src.convertTo(dst, CV_32FC3);
+  cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
+
+  // normalize to -1 & 1
+  Pixel *pixel = dst.ptr<Pixel>(0, 0);
+  const Pixel *endPixel = pixel + dst.cols * dst.rows;
+  for (; pixel != endPixel; pixel++)
+    normalize(*pixel);
+
+  // resize image as model input
+  cv::resize(dst, dst, cv::Size(width, height));
+  return dst;
 }
 
 template <typename T>
@@ -85,8 +111,7 @@ int main(int argc, char *argv[])
 
   // get input & output layer
   TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
-  TfLiteTensor *output_box = interpreter->tensor(interpreter->outputs()[0]);
-  TfLiteTensor *output_score = interpreter->tensor(interpreter->outputs()[1]);
+  TfLiteTensor *output_score = interpreter->tensor(interpreter->outputs()[0]);
 
   const uint HEIGHT_M = input_tensor->dims->data[1];
   const uint WIDTH_M = input_tensor->dims->data[2];
@@ -96,25 +121,7 @@ int main(int argc, char *argv[])
   cout << "WIDTH_M=" << WIDTH_M << endl;
   cout << "CHANNEL_M=" << CHANNEL_M << endl;
 
-  cout << "convert to float; BGR -> RGB" << endl;
-  cv::Mat inputImg;
-  image.convertTo(inputImg, CV_32FC3);
-  cv::cvtColor(inputImg, inputImg, cv::COLOR_BGR2RGB);
-
-  cout << "normalize to -1 & 1" << endl;
-  Pixel *pixel = inputImg.ptr<Pixel>(0, 0);
-  const Pixel *endPixel = pixel + inputImg.cols * inputImg.rows;
-  for (; pixel != endPixel; pixel++)
-    normalize(*pixel);
-
-  cout << "resize image as model input" << endl;
-  cv::resize(inputImg, inputImg, cv::Size(WIDTH_M, HEIGHT_M));
-
-  float *inputLayer = interpreter->typed_input_tensor<float>(0);
-
-  cout << "flatten rgb image to input layer" << endl;
-  float *inputImg_ptr = inputImg.ptr<float>(0);
-  cout << "memcpy..." << endl;
+  cv::Mat inputImg = matPreprocess(image, WIDTH_M, HEIGHT_M);
   memcpy(input_tensor->data.f, inputImg.ptr<float>(0),
          WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(float));
 
@@ -129,47 +136,31 @@ int main(int argc, char *argv[])
 
   cout << "Print final result..." << endl;
 
-  vector<float> box_vec = cvtTensor(output_box);
-  cout << "0" << endl;
   vector<float> score_vec = cvtTensor(output_score);
-
-  cout << "1" << endl;
-
-  vector<size_t> result_id;
-  auto it = std::find_if(std::begin(score_vec), std::end(score_vec),
-                         [](float i)
-                         { return i > 0.6; });
-  cout << "2" << endl;
-  while (it != std::end(score_vec))
+  float maxValue = 0;
+  int maxIndex = -1;
+  for (auto it = score_vec.begin(); it != score_vec.end(); it++)
   {
-    result_id.emplace_back(std::distance(std::begin(score_vec), it));
-    it = std::find_if(std::next(it), std::end(score_vec),
-                      [](float i)
-                      { return i > 0.6; });
+    int index = std::distance(score_vec.begin(), it);
+    if (*it > maxValue)
+    {
+      maxValue = *it;
+      maxIndex = index;
+    }
+    // std::cout << "Element " << *it << " found at index " << index << std::endl;
   }
-  cout << "3" << endl;
-  vector<cv::Rect> rects;
-  vector<float> scores;
-  for (size_t tmp : result_id)
-  {
-    const int cx = box_vec[4 * tmp];
-    const int cy = box_vec[4 * tmp + 1];
-    const int w = box_vec[4 * tmp + 2];
-    const int h = box_vec[4 * tmp + 3];
-    const int xmin = ((cx - (w / 2.f)) / WIDTH_M) * image.cols;
-    const int ymin = ((cy - (h / 2.f)) / HEIGHT_M) * image.rows;
-    const int xmax = ((cx + (w / 2.f)) / WIDTH_M) * image.cols;
-    const int ymax = ((cy + (h / 2.f)) / HEIGHT_M) * image.rows;
-    rects.emplace_back(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
-    scores.emplace_back(score_vec[tmp]);
-  }
-  cout << "4" << endl;
-  vector<int> ids;
-  cv::dnn::NMSBoxes(rects, scores, 0.6, 0.4, ids);
-  for (int tmp : ids)
-    cv::rectangle(image, rects[tmp], cv::Scalar(0, 255, 0), 3);
-  cout << "5" << endl;
-  cv::imwrite("./result.jpg", image);
+  std::cout << "maxElementIndex:" << maxIndex << ", maxElement:" << maxValue << '\n';
+
+  /*
+  int maxElementIndex = std::max_element(score_vec.begin(), score_vec.end()) - score_vec.begin();
+  int maxElement = *std::max_element(score_vec.begin(), score_vec.end());
+
+  int minElementIndex = std::min_element(score_vec.begin(), score_vec.end()) - score_vec.begin();
+  int minElement = *std::min_element(score_vec.begin(), score_vec.end());
+
+  std::cout << "maxElementIndex:" << maxElementIndex << ", maxElement:" << maxElement << '\n';
+  std::cout << "minElementIndex:" << minElementIndex << ", minElement:" << minElement << '\n';
+  */
 
   return 0;
 }
