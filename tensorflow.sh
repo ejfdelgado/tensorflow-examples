@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# Run first AWS credentials /home/ejfdelgado/desarrollo/amazon/rootkey.csv
+
 # Install dependencies
 sudo amazon-linux-extras install -y java-openjdk11
 sudo yum update
@@ -29,6 +31,18 @@ chmod +x setup_16.x
 sudo ./setup_16.x
 sudo yum install -y nodejs
 
+# Install opencv
+wget -O opencv.zip https://github.com/opencv/opencv/archive/refs/heads/4.x.zip
+mkdir opencv
+unzip opencv.zip -d opencv
+mkdir opencv-build
+cd opencv-build
+cmake  ../opencv/opencv-4.x
+make -j 4
+export OpenCV_DIR=/home/ec2-user/opencv-build
+
+cd ..
+
 # Build Tensorflow with Bazel
 git clone https://github.com/tensorflow/tensorflow.git
 cd tensorflow
@@ -39,20 +53,23 @@ bazel build --jobs 4 //tensorflow/lite:libtensorflowlite.so
 
 cd ..
 
-# Build own project
+# Clone own project
 git clone https://github.com/ejfdelgado/tensorflow-examples.git
 cd tensorflow-examples
+
+# Build tensorflow minimal
 mkdir minimal-tf-build
 cd minimal-tf-build
 cmake ../minimal-tf
 cmake --build . -j 4
-
-# Test
 ./minimal ../tensor_python/models/petals.tflite 5.0 3.2 1.2 0.2
-
 node /home/ec2-user/tensorflow-examples/utils/shared-libs.js /home/ec2-user/tensorflow-examples/minimal-tf-build/minimal minimal.zip
-
-# Run first AWS credentials /home/ejfdelgado/desarrollo/amazon/rootkey.csv
-
 aws s3api put-object --bucket ejfdelgado-simple --key libs/minimal.zip --body minimal.zip
 
+cd ..
+
+# Build opencv minimal
+mkdir segmentation-build
+cd segmentation-build
+cmake ../segmentation
+cmake --build . -j 4
