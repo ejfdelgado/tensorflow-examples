@@ -42,10 +42,12 @@ async function analize() {
     // Get file paths
     for (let i = 0; i < lineas.length; i++) {
         const linea = lineas[i];
-        const partes = /=>([^$]+)$/igm.exec(linea);
+        const partes = /=>(.+)$|(\/.+\s\()/igm.exec(linea);
         if (partes != null) {
             let path = partes[1];
+            console.log(path);
             path = path.replace(/\s+\(.*/ig, '');
+            console.log(path);
             pathFiles.push(path.trim());
         }
     }
