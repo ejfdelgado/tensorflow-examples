@@ -43,10 +43,10 @@ async function analize() {
     for (let i = 0; i < lineas.length; i++) {
         const linea = lineas[i];
         const partes = /=>(.+)$|(\/.+\s\()/igm.exec(linea);
-        console.log(JSON.stringify(partes));
+        //console.log(JSON.stringify(partes));
         if (partes != null) {
-            let path = partes[1];
-            console.log(path);
+            let path = partes[1] ? partes[1] : partes[2];
+            //console.log(path);
             path = path.replace(/\s+\(.*/ig, '');
             console.log(path);
             pathFiles.push(path.trim());
