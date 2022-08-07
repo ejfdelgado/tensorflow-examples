@@ -52,13 +52,17 @@ async function analize() {
             pathFiles.push(path.trim());
         }
     }
-    const DEST_DIR = "./LIBS";
+    const DEST_DIR = "./ALL";
+    const DEST_DIR_LIBS = "./ALL/lib";
     if (!fs.existsSync(DEST_DIR)) {
         fs.mkdirSync(DEST_DIR);
     }
+    if (!fs.existsSync(DEST_DIR_LIBS)) {
+        fs.mkdirSync(DEST_DIR_LIBS);
+    }
     // Copy files into folder
     for (let i = 0; i < pathFiles.length; i++) {
-        await copyFile(pathFiles[i], DEST_DIR);
+        await copyFile(pathFiles[i], DEST_DIR_LIBS);
     }
     await copyFile(executable, DEST_DIR);
     // Zip folder
