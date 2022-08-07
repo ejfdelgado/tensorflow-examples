@@ -11,7 +11,6 @@
 // Usage:
 // ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/mobilenet/mobilenet_v1_1.0_224_quant.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/bee.jpg
 // ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/bee.jpg
-// ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/yolov4-416-fp32.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cat.jpg
 
 using namespace cv;
 using namespace std;

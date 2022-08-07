@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 mixed-build/
+segmentation2-build/
 
 # C extensions
 *.so
