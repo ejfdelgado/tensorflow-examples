@@ -5,6 +5,7 @@ __pycache__/
 
 mixed-build/
 segmentation2-build/
+notebooks/saved_model/
 
 # C extensions
 *.so
