@@ -12,7 +12,7 @@
 // https://www.tensorflow.org/lite/examples
 // cmake --build . -j 4
 // Usage:
-// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT
+// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10
 
 using namespace cv;
 using namespace std;
@@ -87,6 +87,24 @@ auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint ty
 }
 
 template <typename T>
+void migate2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint HEIGHT_M, uint CHANNEL_M, uint type)
+{
+  cv::Mat inputImg;
+  inputImg = matPreprocess<T>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, type);
+  for (uint y = 0; y < HEIGHT_M; y++)
+  {
+    for (uint x = 0; x < WIDTH_M; x++)
+    {
+      PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
+      input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 0] = pixel->x;
+      input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 1] = pixel->y;
+      input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 2] = pixel->z;
+    }
+  }
+  return;
+}
+
+template <typename T>
 auto cvtTensor(TfLiteTensor *tensor) -> vector<T>;
 
 auto cvtTensor(TfLiteTensor *tensor) -> vector<float>
@@ -128,13 +146,15 @@ int main(int argc, char *argv[])
                                "{@model      |            |The .tflite model file)}"
                                "{labels     l|            |The labels .txt file}"
                                "{imageType it|IMREAD_COLOR|Can be: IMREAD_COLOR IMREAD_GRAYSCALE}"
-                               "{mode       m|FLOAT       |Can be: FLOAT CHAR}");
+                               "{mode       m|FLOAT       |Can be: FLOAT CHAR}"
+                               "{normalize  n|10          |Can be: 11 10 256}");
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
   String modelPathString = parser.get<String>("@model");
   String labelsPathString = parser.get<String>("labels");
   String imageTypeString = parser.get<String>("imageType");
   String modeString = parser.get<String>("mode");
+  int normalize = parser.get<int>("normalize");
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
 
@@ -188,60 +208,11 @@ int main(int argc, char *argv[])
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
-    inputImg = matPreprocess<char>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 256);
-    memcpy(input_tensor->data.f, inputImg.ptr<char>(0),
-           WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(char));
+    migate2tensor<char>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
   }
-  else if (modeString.compare("OWN_FLOAT1") == 0)
+  else if (modeString.compare("FLOAT") == 0)
   {
-    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
-    for (uint y = 0; y < HEIGHT_M; y++)
-    {
-      for (uint x = 0; x < WIDTH_M; x++)
-      {
-        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-        input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 0] = pixel->x;
-        input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 1] = pixel->y;
-        input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 2] = pixel->z;
-      }
-    }
-  }
-  else if (modeString.compare("OWN_FLOAT2") == 0)
-  {
-    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
-    float *pixel = inputImg.ptr<float>(0, 0);
-    for (uint y = 0; y < HEIGHT_M; y++)
-    {
-      for (uint x = 0; x < WIDTH_M; x++)
-      {
-        for (uint z = 0; z < CHANNEL_M; z++)
-        {
-          uint xind = (y * WIDTH_M + x) * CHANNEL_M + z;
-          uint xind2 = (x * HEIGHT_M + y) * CHANNEL_M + z;
-          input_tensor->data.f[xind] = pixel[xind2];
-        }
-      }
-    }
-  }
-  else if (modeString.compare("OWN_FLOAT3") == 0)
-  {
-    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
-    for (uint y = 0; y < HEIGHT_M; y++)
-    {
-      for (uint x = 0; x < WIDTH_M; x++)
-      {
-        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x) * CHANNEL_M + 0] = pixel->x;
-        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x) * CHANNEL_M + 1] = pixel->y;
-        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x) * CHANNEL_M + 2] = pixel->z;
-      }
-    }
-  }
-  else
-  {
-    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
-    memcpy(input_tensor->data.f, inputImg.ptr<float>(0),
-           WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(float));
+    migate2tensor<float>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
   }
 
   cout << "Run inference" << endl;
