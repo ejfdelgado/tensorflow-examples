@@ -38,42 +38,50 @@ std::vector<std::string> readLabelsFile(const char *path)
   return myvector;
 }
 
-void normalize_1_1(PixelFloat &pixel)
+template <typename T>
+void genericNormalize(cv::Mat inputImg, uint nChanells, uint type)
 {
-  pixel.x = ((pixel.x / 255.0) - 0.5) * 2.0;
-  pixel.y = ((pixel.y / 255.0) - 0.5) * 2.0;
-  pixel.z = ((pixel.z / 255.0) - 0.5) * 2.0;
+  T *pixel = inputImg.ptr<T>(0, 0);
+  int rows = inputImg.rows;
+  int cols = inputImg.cols;
+  for (uint i = 0; i < rows; i++)
+  {
+    for (uint j = 0; j < cols; j++)
+    {
+      for (uint z = 0; z < nChanells; z++)
+      {
+        const uint indice = (j * rows + i) * nChanells + z;
+        if (type == 10)
+        {
+          pixel[indice] = (pixel[indice] / 255.0);
+        }
+        else if (type == 11)
+        {
+          pixel[indice] = ((pixel[indice] / 255.0) - 0.5) * 2.0;
+        }
+      }
+    }
+  }
 }
 
-void normalize_0_1(PixelFloat &pixel)
-{
-  pixel.x = (pixel.x / 255.0);
-  pixel.y = (pixel.y / 255.0);
-  pixel.z = (pixel.z / 255.0);
-}
-
-auto matPreprocessFloat(cv::Mat src, uint width, uint height) -> cv::Mat
-{
-  // convert to float; BGR -> RGB
-  cv::Mat dst;
-  src.convertTo(dst, CV_32FC3);
-  cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
-
-  // normalize
-  PixelFloat *pixel = dst.ptr<PixelFloat>(0, 0);
-  const PixelFloat *endPixel = pixel + dst.cols * dst.rows;
-  for (; pixel != endPixel; pixel++)
-    normalize_0_1(*pixel);
-  // resize image as model input
-  cv::resize(dst, dst, cv::Size(width, height));
-  return dst;
-}
-
-auto matPreprocessChar(cv::Mat src, uint width, uint height) -> cv::Mat
+template <typename T>
+auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint type) -> cv::Mat
 {
   cv::Mat dst;
-  dst = src.clone();
-  cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
+  if (type == 10 || type == 11)
+  {
+    src.convertTo(dst, CV_32FC3);
+  }
+  else if (type == 256)
+  {
+    dst = src.clone();
+  }
+  if (nChanells == 3)
+  {
+    // Only if RGB swap R with B
+    cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
+  }
+  genericNormalize<T>(dst, nChanells, 10);
   cv::resize(dst, dst, cv::Size(width, height));
   return dst;
 }
@@ -180,35 +188,36 @@ int main(int argc, char *argv[])
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
-    inputImg = matPreprocessChar(image, WIDTH_M, HEIGHT_M);
+    inputImg = matPreprocess<char>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 256);
     memcpy(input_tensor->data.f, inputImg.ptr<char>(0),
            WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(char));
   }
   else if (modeString.compare("OWN_FLOAT1") == 0)
   {
-    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
-    for (int y = 0; y < HEIGHT_M; y++)
+    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
+    for (uint y = 0; y < HEIGHT_M; y++)
     {
-      for (int x = 0; x < WIDTH_M; x++)
+      for (uint x = 0; x < WIDTH_M; x++)
       {
         PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-        input_tensor->data.f[(y * WIDTH_M + x)*CHANNEL_M + 0] = pixel->x;
-        input_tensor->data.f[(y * WIDTH_M + x)*CHANNEL_M + 1] = pixel->y;
-        input_tensor->data.f[(y * WIDTH_M + x)*CHANNEL_M + 2] = pixel->z;
+        input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 0] = pixel->x;
+        input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 1] = pixel->y;
+        input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 2] = pixel->z;
       }
     }
   }
   else if (modeString.compare("OWN_FLOAT2") == 0)
   {
-    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
     float *pixel = inputImg.ptr<float>(0, 0);
-    for (int y = 0; y < HEIGHT_M; y++)
+    for (uint y = 0; y < HEIGHT_M; y++)
     {
-      for (int x = 0; x < WIDTH_M; x++)
+      for (uint x = 0; x < WIDTH_M; x++)
       {
-        for (int z=0; z<CHANNEL_M; z++) {
-          int xind = (y * WIDTH_M + x)*CHANNEL_M + z;
-          int xind2 = (x * HEIGHT_M + y)*CHANNEL_M + z;
+        for (uint z = 0; z < CHANNEL_M; z++)
+        {
+          uint xind = (y * WIDTH_M + x) * CHANNEL_M + z;
+          uint xind2 = (x * HEIGHT_M + y) * CHANNEL_M + z;
           input_tensor->data.f[xind] = pixel[xind2];
         }
       }
@@ -216,21 +225,21 @@ int main(int argc, char *argv[])
   }
   else if (modeString.compare("OWN_FLOAT3") == 0)
   {
-    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
-    for (int y = 0; y < HEIGHT_M; y++)
+    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
+    for (uint y = 0; y < HEIGHT_M; y++)
     {
-      for (int x = 0; x < WIDTH_M; x++)
+      for (uint x = 0; x < WIDTH_M; x++)
       {
         PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 0] = pixel->x;
-        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 1] = pixel->y;
-        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 2] = pixel->z;
+        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x) * CHANNEL_M + 0] = pixel->x;
+        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x) * CHANNEL_M + 1] = pixel->y;
+        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x) * CHANNEL_M + 2] = pixel->z;
       }
     }
   }
   else
   {
-    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    inputImg = matPreprocess<float>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, 10);
     memcpy(input_tensor->data.f, inputImg.ptr<float>(0),
            WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(float));
   }
