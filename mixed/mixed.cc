@@ -12,8 +12,8 @@
 // https://www.tensorflow.org/lite/examples
 // cmake --build . -j 4
 // Usage:
-// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10
-// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -it=IMREAD_COLOR -m=CHAR -n=256 -ci=2
+// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -si=0
+// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6
 // ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10
 
 using namespace cv;
@@ -86,7 +86,8 @@ auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint ty
     std::cout << "cvtColor COLOR_BGR2RGB" << std::endl;
     cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
   }
-  if (type == 10 || type == 11) {
+  if (type == 10 || type == 11)
+  {
     std::cout << "genericNormalize" << std::endl;
     genericNormalize<T>(dst, nChanells, type);
   }
@@ -100,7 +101,10 @@ void image2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint 
 {
   cv::Mat inputImg;
   inputImg = matPreprocess<T>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, type);
-  T *pixel = inputImg.ptr<T>(0, 0);
+  memcpy(input_tensor->data.f, inputImg.ptr<T>(0),
+         WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(T));
+  /*
+  T *pixel = inputImg.ptr<T>(0);
   for (uint y = 0; y < HEIGHT_M; y++)
   {
     for (uint x = 0; x < WIDTH_M; x++)
@@ -113,6 +117,7 @@ void image2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint 
       }
     }
   }
+  */
   return;
 }
 
@@ -187,8 +192,10 @@ int main(int argc, char *argv[])
                                "{imageType it |IMREAD_COLOR|Can be: IMREAD_COLOR IMREAD_GRAYSCALE}"
                                "{mode       m |FLOAT       |Can be: FLOAT CHAR}"
                                "{normalize  n |10          |Can be: 11 10 256}"
-                               "{classIndex ci|0           |Number of class index}"
-                               );
+                               "{classIndex ci|-1          |Number of class index}"
+                               "{scoreIndex si|-1          |Number of score index. Segmentation only.}"
+                               "{boxIndex   bi|-1          |Number of box index. Segmentation only.}"
+                               "{threshold  th|0.6         |Threshold for score. Segmentation only.}");
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
   String modelPathString = parser.get<String>("@model");
@@ -197,6 +204,9 @@ int main(int argc, char *argv[])
   String modeString = parser.get<String>("mode");
   int normalize = parser.get<int>("normalize");
   int classIndex = parser.get<int>("classIndex");
+  int scoreIndex = parser.get<int>("scoreIndex");
+  int boxIndex = parser.get<int>("boxIndex");
+  float scoreThreshold = parser.get<float>("threshold");
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
 
@@ -252,7 +262,77 @@ int main(int argc, char *argv[])
   printf("\n\n=== Post-invoke Interpreter State ===\n");
   // tflite::PrintInterpreterState(interpreter.get());
 
-  printTopClass<float>(&interpreter, classIndex, class_names);
+  if (scoreIndex >= 0)
+  {
+    printTopClass<float>(&interpreter, scoreIndex, class_names);
+  }
+
+  if (classIndex >= 0 && scoreIndex >= 0 && boxIndex >= 0)
+  {
+    // Ubicaciones
+    TfLiteTensor *output_box = interpreter->tensor(interpreter->outputs()[boxIndex]);
+    // Score
+    TfLiteTensor *output_score = interpreter->tensor(interpreter->outputs()[scoreIndex]);
+    // Class
+    TfLiteTensor *output_class = interpreter->tensor(interpreter->outputs()[classIndex]);
+
+    vector<float> box_vec = cvtTensor(output_box);
+    vector<float> score_vec = cvtTensor(output_score);
+    vector<float> class_vec = cvtTensor(output_class);
+
+    vector<size_t> result_id;
+    auto it = std::find_if(std::begin(score_vec), std::end(score_vec),
+                           [scoreThreshold](float i)
+                           { return i > scoreThreshold; });
+    while (it != std::end(score_vec))
+    {
+      result_id.emplace_back(std::distance(std::begin(score_vec), it));
+      it = std::find_if(std::next(it), std::end(score_vec),
+                        [scoreThreshold](float i)
+                        { return i > scoreThreshold; });
+    }
+
+    std::cout << "Objects detected: " << result_id.size() << std::endl;
+
+    std::vector<cv::Rect> rects;
+    std::vector<float> scores;
+
+    uint classSize = class_names.size();
+    std::cout << "[";
+    for (size_t tmp : result_id)
+    {
+      // [arriba, izquierda, abajo, derecha]
+      const float arriba = box_vec[4 * tmp];
+      const float izquierda = box_vec[4 * tmp + 1];
+      const float abajo = box_vec[4 * tmp + 2];
+      const float derecha = box_vec[4 * tmp + 3];
+
+      const int xmin = izquierda * image.cols;
+      const int xmax = derecha * image.cols;
+      const int ymin = arriba * image.rows;
+      const int ymax = abajo * image.rows;
+
+      std::cout << "{\"i\":" << class_vec[tmp] << ", ";
+      std::cout << "\"xi\":\"" << xmin << "\", ";
+      std::cout << "\"xf\":\"" << xmax << "\", ";
+      std::cout << "\"yi\":\"" << ymin << "\", ";
+      std::cout << "\"yf\":\"" << ymax << "\", ";
+      if (class_vec[tmp] < classSize)
+      {
+        std::cout << "\"c\":\"" << class_names[class_vec[tmp]] << "\", ";
+      }
+      std::cout << "\"v\":" << score_vec[tmp] << "},";
+      rects.emplace_back(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+      scores.emplace_back(score_vec[tmp]);
+    }
+    std::cout << "]" << std::endl;
+
+    vector<int> ids;
+    cv::dnn::NMSBoxes(rects, scores, 0.6, 0.4, ids);
+    for (int tmp : ids)
+      cv::rectangle(image, rects[tmp], cv::Scalar(0, 255, 0), 3);
+    cv::imwrite("./result.jpg", image);
+  }
 
   return 0;
 }
