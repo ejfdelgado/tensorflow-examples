@@ -16,13 +16,10 @@
 // ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -si=0
 // ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6
 // ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6
-// ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10
+// ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_GRAYSCALE -m=FLOAT -n=10 -si=0
 
 using namespace cv;
 using namespace std;
-
-typedef cv::Point3_<char> PixelChar;
-typedef cv::Point3_<float> PixelFloat;
 
 std::vector<std::string> readLabelsFile(const char *path)
 {
@@ -174,8 +171,83 @@ void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint class
   {
     std::cout << "\"c\":\"" << class_names[maxIndex] << "\", ";
   }
-  std::cout << "\"v\":" << maxValue << "},";
+  std::cout << "\"v\":" << maxValue << "}";
   std::cout << "]" << std::endl;
+}
+
+template <typename T>
+void printSegmented(std::unique_ptr<tflite::Interpreter> *interpreter, float scoreThreshold, uint boxIndex, uint scoreIndex, uint classIndex, std::vector<string> class_names, bool renderOutput, cv::Mat image)
+{
+
+  // Ubicaciones
+  TfLiteTensor *output_box = (*interpreter)->tensor((*interpreter)->outputs()[boxIndex]);
+  // Score
+  TfLiteTensor *output_score = (*interpreter)->tensor((*interpreter)->outputs()[scoreIndex]);
+  // Class
+  TfLiteTensor *output_class = (*interpreter)->tensor((*interpreter)->outputs()[classIndex]);
+
+  vector<float> box_vec = cvtTensor(output_box);
+  vector<float> score_vec = cvtTensor(output_score);
+  vector<float> class_vec = cvtTensor(output_class);
+
+  vector<size_t> result_id;
+  auto it = std::find_if(std::begin(score_vec), std::end(score_vec),
+                         [scoreThreshold](float i)
+                         { return i > scoreThreshold; });
+  while (it != std::end(score_vec))
+  {
+    result_id.emplace_back(std::distance(std::begin(score_vec), it));
+    it = std::find_if(std::next(it), std::end(score_vec),
+                      [scoreThreshold](float i)
+                      { return i > scoreThreshold; });
+  }
+  uint nFoundObjects = result_id.size();
+
+  std::vector<cv::Rect> rects;
+  std::vector<float> scores;
+
+  uint classSize = class_names.size();
+  std::cout << "[";
+  for (size_t tmp : result_id)
+  {
+    // [arriba, izquierda, abajo, derecha]
+    const float arriba = box_vec[4 * tmp];
+    const float izquierda = box_vec[4 * tmp + 1];
+    const float abajo = box_vec[4 * tmp + 2];
+    const float derecha = box_vec[4 * tmp + 3];
+
+    const int xmin = izquierda * image.cols;
+    const int xmax = derecha * image.cols;
+    const int ymin = arriba * image.rows;
+    const int ymax = abajo * image.rows;
+
+    std::cout << "{\"i\":" << class_vec[tmp] << ", ";
+    std::cout << "\"xi\":\"" << xmin << "\", ";
+    std::cout << "\"xf\":\"" << xmax << "\", ";
+    std::cout << "\"yi\":\"" << ymin << "\", ";
+    std::cout << "\"yf\":\"" << ymax << "\", ";
+    if (class_vec[tmp] < classSize)
+    {
+      std::cout << "\"c\":\"" << class_names[class_vec[tmp]] << "\", ";
+    }
+    std::cout << "\"v\":" << score_vec[tmp] << "}";
+    if (tmp < nFoundObjects - 1)
+    {
+      std::cout << ", ";
+    }
+    rects.emplace_back(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+    scores.emplace_back(score_vec[tmp]);
+  }
+  std::cout << "]" << std::endl;
+
+  if (renderOutput)
+  {
+    vector<int> ids;
+    cv::dnn::NMSBoxes(rects, scores, 0.6, 0.4, ids);
+    for (int tmp : ids)
+      cv::rectangle(image, rects[tmp], cv::Scalar(0, 255, 0), 3);
+    cv::imwrite("./result.jpg", image);
+  }
 }
 
 #define TFLITE_MINIMAL_CHECK(x)                              \
@@ -220,6 +292,11 @@ int main(int argc, char *argv[])
     printf("No image data \n");
     return EXIT_FAILURE;
   }
+  std::cout << "{";
+  std::cout << "\"width\":" << image.cols << ", ";
+  std::cout << "\"height\":" << image.rows << ", ";
+  std::cout << "\"chanells\":" << image.channels();
+  std::cout << "}" << std::endl;
 
   // Load labels path
   std::vector<string> class_names;
@@ -271,69 +348,7 @@ int main(int argc, char *argv[])
 
   if (classIndex >= 0 && scoreIndex >= 0 && boxIndex >= 0)
   {
-    // Ubicaciones
-    TfLiteTensor *output_box = interpreter->tensor(interpreter->outputs()[boxIndex]);
-    // Score
-    TfLiteTensor *output_score = interpreter->tensor(interpreter->outputs()[scoreIndex]);
-    // Class
-    TfLiteTensor *output_class = interpreter->tensor(interpreter->outputs()[classIndex]);
-
-    vector<float> box_vec = cvtTensor(output_box);
-    vector<float> score_vec = cvtTensor(output_score);
-    vector<float> class_vec = cvtTensor(output_class);
-
-    vector<size_t> result_id;
-    auto it = std::find_if(std::begin(score_vec), std::end(score_vec),
-                           [scoreThreshold](float i)
-                           { return i > scoreThreshold; });
-    while (it != std::end(score_vec))
-    {
-      result_id.emplace_back(std::distance(std::begin(score_vec), it));
-      it = std::find_if(std::next(it), std::end(score_vec),
-                        [scoreThreshold](float i)
-                        { return i > scoreThreshold; });
-    }
-
-    std::cout << "Objects detected: " << result_id.size() << std::endl;
-
-    std::vector<cv::Rect> rects;
-    std::vector<float> scores;
-
-    uint classSize = class_names.size();
-    std::cout << "[";
-    for (size_t tmp : result_id)
-    {
-      // [arriba, izquierda, abajo, derecha]
-      const float arriba = box_vec[4 * tmp];
-      const float izquierda = box_vec[4 * tmp + 1];
-      const float abajo = box_vec[4 * tmp + 2];
-      const float derecha = box_vec[4 * tmp + 3];
-
-      const int xmin = izquierda * image.cols;
-      const int xmax = derecha * image.cols;
-      const int ymin = arriba * image.rows;
-      const int ymax = abajo * image.rows;
-
-      std::cout << "{\"i\":" << class_vec[tmp] << ", ";
-      std::cout << "\"xi\":\"" << xmin << "\", ";
-      std::cout << "\"xf\":\"" << xmax << "\", ";
-      std::cout << "\"yi\":\"" << ymin << "\", ";
-      std::cout << "\"yf\":\"" << ymax << "\", ";
-      if (class_vec[tmp] < classSize)
-      {
-        std::cout << "\"c\":\"" << class_names[class_vec[tmp]] << "\", ";
-      }
-      std::cout << "\"v\":" << score_vec[tmp] << "},";
-      rects.emplace_back(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
-      scores.emplace_back(score_vec[tmp]);
-    }
-    std::cout << "]" << std::endl;
-
-    vector<int> ids;
-    cv::dnn::NMSBoxes(rects, scores, 0.6, 0.4, ids);
-    for (int tmp : ids)
-      cv::rectangle(image, rects[tmp], cv::Scalar(0, 255, 0), 3);
-    cv::imwrite("./result.jpg", image);
+    printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, true, image);
   }
 
   return 0;
