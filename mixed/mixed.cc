@@ -201,14 +201,16 @@ int main(int argc, char *argv[])
   else if (modeString.compare("OWN_FLOAT2") == 0)
   {
     inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    float *pixel = inputImg.ptr<float>(0, 0);
     for (int y = 0; y < HEIGHT_M; y++)
     {
       for (int x = 0; x < WIDTH_M; x++)
       {
-        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-        input_tensor->data.f[(x * HEIGHT_M + y)*CHANNEL_M + 0] = pixel->x;
-        input_tensor->data.f[(x * HEIGHT_M + y)*CHANNEL_M + 1] = pixel->y;
-        input_tensor->data.f[(x * HEIGHT_M + y)*CHANNEL_M + 2] = pixel->z;
+        for (int z=0; z<CHANNEL_M; z++) {
+          int xind = (y * WIDTH_M + x)*CHANNEL_M + z;
+          int xind2 = (x * HEIGHT_M + y)*CHANNEL_M + z;
+          input_tensor->data.f[xind] = pixel[xind2];
+        }
       }
     }
   }
@@ -223,20 +225,6 @@ int main(int argc, char *argv[])
         interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 0] = pixel->x;
         interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 1] = pixel->y;
         interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 2] = pixel->z;
-      }
-    }
-  }
-  else if (modeString.compare("OWN_FLOAT4") == 0)
-  {
-    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
-    for (int y = 0; y < HEIGHT_M; y++)
-    {
-      for (int x = 0; x < WIDTH_M; x++)
-      {
-        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-        interpreter->typed_input_tensor<float>(0)[(x * HEIGHT_M + y)*CHANNEL_M + 0] = pixel->x;
-        interpreter->typed_input_tensor<float>(0)[(x * HEIGHT_M + y)*CHANNEL_M + 1] = pixel->y;
-        interpreter->typed_input_tensor<float>(0)[(x * HEIGHT_M + y)*CHANNEL_M + 2] = pixel->z;
       }
     }
   }
