@@ -1,4 +1,7 @@
 #include <cstdio>
+#include <iostream>
+#include <fstream>
+#include <string>
 #include <opencv2/opencv.hpp>
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
@@ -9,8 +12,7 @@
 // https://www.tensorflow.org/lite/examples
 // cmake --build . -j 4
 // Usage:
-// ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/mobilenet/mobilenet_v1_1.0_224_quant.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/bee.jpg
-// ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/bee.jpg
+// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT
 
 using namespace cv;
 using namespace std;
@@ -18,7 +20,23 @@ using namespace std;
 typedef cv::Point3_<char> PixelChar;
 typedef cv::Point3_<float> PixelFloat;
 
-std::string class_names[] = {"background", "tench", "goldfish", "great white shark", "tiger shark", "hammerhead", "electric ray", "stingray", "cock", "hen", "ostrich", "brambling", "goldfinch", "house finch", "junco", "indigo bunting", "robin", "bulbul", "jay", "magpie", "chickadee", "water ouzel", "kite", "bald eagle", "vulture", "great grey owl", "European fire salamander", "common newt", "eft", "spotted salamander", "axolotl", "bullfrog", "tree frog", "tailed frog", "loggerhead", "leatherback turtle", "mud turtle", "terrapin", "box turtle", "banded gecko", "common iguana", "American chameleon", "whiptail", "agama", "frilled lizard", "alligator lizard", "Gila monster", "green lizard", "African chameleon", "Komodo dragon", "African crocodile", "American alligator", "triceratops", "thunder snake", "ringneck snake", "hognose snake", "green snake", "king snake", "garter snake", "water snake", "vine snake", "night snake", "boa constrictor", "rock python", "Indian cobra", "green mamba", "sea snake", "horned viper", "diamondback", "sidewinder", "trilobite", "harvestman", "scorpion", "black and gold garden spider", "barn spider", "garden spider", "black widow", "tarantula", "wolf spider", "tick", "centipede", "black grouse", "ptarmigan", "ruffed grouse", "prairie chicken", "peacock", "quail", "partridge", "African grey", "macaw", "sulphur-crested cockatoo", "lorikeet", "coucal", "bee eater", "hornbill", "hummingbird", "jacamar", "toucan", "drake", "red-breasted merganser", "goose", "black swan", "tusker", "echidna", "platypus", "wallaby", "koala", "wombat", "jellyfish", "sea anemone", "brain coral", "flatworm", "nematode", "conch", "snail", "slug", "sea slug", "chiton", "chambered nautilus", "Dungeness crab", "rock crab", "fiddler crab", "king crab", "American lobster", "spiny lobster", "crayfish", "hermit crab", "isopod", "white stork", "black stork", "spoonbill", "flamingo", "little blue heron", "American egret", "bittern", "crane", "limpkin", "European gallinule", "American coot", "bustard", "ruddy turnstone", "red-backed sandpiper", "redshank", "dowitcher", "oystercatcher", "pelican", "king penguin", "albatross", "grey whale", "killer whale", "dugong", "sea lion", "Chihuahua", "Japanese spaniel", "Maltese dog", "Pekinese", "Shih-Tzu", "Blenheim spaniel", "papillon", "toy terrier", "Rhodesian ridgeback", "Afghan hound", "basset", "beagle", "bloodhound", "bluetick", "black-and-tan coonhound", "Walker hound", "English foxhound", "redbone", "borzoi", "Irish wolfhound", "Italian greyhound", "whippet", "Ibizan hound", "Norwegian elkhound", "otterhound", "Saluki", "Scottish deerhound", "Weimaraner", "Staffordshire bullterrier", "American Staffordshire terrier", "Bedlington terrier", "Border terrier", "Kerry blue terrier", "Irish terrier", "Norfolk terrier", "Norwich terrier", "Yorkshire terrier", "wire-haired fox terrier", "Lakeland terrier", "Sealyham terrier", "Airedale", "cairn", "Australian terrier", "Dandie Dinmont", "Boston bull", "miniature schnauzer", "giant schnauzer", "standard schnauzer", "Scotch terrier", "Tibetan terrier", "silky terrier", "soft-coated wheaten terrier", "West Highland white terrier", "Lhasa", "flat-coated retriever", "curly-coated retriever", "golden retriever", "Labrador retriever", "Chesapeake Bay retriever", "German short-haired pointer", "vizsla", "English setter", "Irish setter", "Gordon setter", "Brittany spaniel", "clumber", "English springer", "Welsh springer spaniel", "cocker spaniel", "Sussex spaniel", "Irish water spaniel", "kuvasz", "schipperke", "groenendael", "malinois", "briard", "kelpie", "komondor", "Old English sheepdog", "Shetland sheepdog", "collie", "Border collie", "Bouvier des Flandres", "Rottweiler", "German shepherd", "Doberman", "miniature pinscher", "Greater Swiss Mountain dog", "Bernese mountain dog", "Appenzeller", "EntleBucher", "boxer", "bull mastiff", "Tibetan mastiff", "French bulldog", "Great Dane", "Saint Bernard", "Eskimo dog", "malamute", "Siberian husky", "dalmatian", "affenpinscher", "basenji", "pug", "Leonberg", "Newfoundland", "Great Pyrenees", "Samoyed", "Pomeranian", "chow", "keeshond", "Brabancon griffon", "Pembroke", "Cardigan", "toy poodle", "miniature poodle", "standard poodle", "Mexican hairless", "timber wolf", "white wolf", "red wolf", "coyote", "dingo", "dhole", "African hunting dog", "hyena", "red fox", "kit fox", "Arctic fox", "grey fox", "tabby", "tiger cat", "Persian cat", "Siamese cat", "Egyptian cat", "cougar", "lynx", "leopard", "snow leopard", "jaguar", "lion", "tiger", "cheetah", "brown bear", "American black bear", "ice bear", "sloth bear", "mongoose", "meerkat", "tiger beetle", "ladybug", "ground beetle", "long-horned beetle", "leaf beetle", "dung beetle", "rhinoceros beetle", "weevil", "fly", "bee", "ant", "grasshopper", "cricket", "walking stick", "cockroach", "mantis", "cicada", "leafhopper", "lacewing", "dragonfly", "damselfly", "admiral", "ringlet", "monarch", "cabbage butterfly", "sulphur butterfly", "lycaenid", "starfish", "sea urchin", "sea cucumber", "wood rabbit", "hare", "Angora", "hamster", "porcupine", "fox squirrel", "marmot", "beaver", "guinea pig", "sorrel", "zebra", "hog", "wild boar", "warthog", "hippopotamus", "ox", "water buffalo", "bison", "ram", "bighorn", "ibex", "hartebeest", "impala", "gazelle", "Arabian camel", "llama", "weasel", "mink", "polecat", "black-footed ferret", "otter", "skunk", "badger", "armadillo", "three-toed sloth", "orangutan", "gorilla", "chimpanzee", "gibbon", "siamang", "guenon", "patas", "baboon", "macaque", "langur", "colobus", "proboscis monkey", "marmoset", "capuchin", "howler monkey", "titi", "spider monkey", "squirrel monkey", "Madagascar cat", "indri", "Indian elephant", "African elephant", "lesser panda", "giant panda", "barracouta", "eel", "coho", "rock beauty", "anemone fish", "sturgeon", "gar", "lionfish", "puffer", "abacus", "abaya", "academic gown", "accordion", "acoustic guitar", "aircraft carrier", "airliner", "airship", "altar", "ambulance", "amphibian", "analog clock", "apiary", "apron", "ashcan", "assault rifle", "backpack", "bakery", "balance beam", "balloon", "ballpoint", "Band Aid", "banjo", "bannister", "barbell", "barber chair", "barbershop", "barn", "barometer", "barrel", "barrow", "baseball", "basketball", "bassinet", "bassoon", "bathing cap", "bath towel", "bathtub", "beach wagon", "beacon", "beaker", "bearskin", "beer bottle", "beer glass", "bell cote", "bib", "bicycle-built-for-two", "bikini", "binder", "binoculars", "birdhouse", "boathouse", "bobsled", "bolo tie", "bonnet", "bookcase", "bookshop", "bottlecap", "bow", "bow tie", "brass", "brassiere", "breakwater", "breastplate", "broom", "bucket", "buckle", "bulletproof vest", "bullet train", "butcher shop", "cab", "caldron", "candle", "cannon", "canoe", "can opener", "cardigan", "car mirror", "carousel", "carpenter's kit", "carton", "car wheel", "cash machine", "cassette", "cassette player", "castle", "catamaran", "CD player", "cello", "cellular telephone", "chain", "chainlink fence", "chain mail", "chain saw", "chest", "chiffonier", "chime", "china cabinet", "Christmas stocking", "church", "cinema", "cleaver", "cliff dwelling", "cloak", "clog", "cocktail shaker", "coffee mug", "coffeepot", "coil", "combination lock", "computer keyboard", "confectionery", "container ship", "convertible", "corkscrew", "cornet", "cowboy boot", "cowboy hat", "cradle", "crane", "crash helmet", "crate", "crib", "Crock Pot", "croquet ball", "crutch", "cuirass", "dam", "desk", "desktop computer", "dial telephone", "diaper", "digital clock", "digital watch", "dining table", "dishrag", "dishwasher", "disk brake", "dock", "dogsled", "dome", "doormat", "drilling platform", "drum", "drumstick", "dumbbell", "Dutch oven", "electric fan", "electric guitar", "electric locomotive", "entertainment center", "envelope", "espresso maker", "face powder", "feather boa", "file", "fireboat", "fire engine", "fire screen", "flagpole", "flute", "folding chair", "football helmet", "forklift", "fountain", "fountain pen", "four-poster", "freight car", "French horn", "frying pan", "fur coat", "garbage truck", "gasmask", "gas pump", "goblet", "go-kart", "golf ball", "golfcart", "gondola", "gong", "gown", "grand piano", "greenhouse", "grille", "grocery store", "guillotine", "hair slide", "hair spray", "half track", "hammer", "hamper", "hand blower", "hand-held computer", "handkerchief", "hard disc", "harmonica", "harp", "harvester", "hatchet", "holster", "home theater", "honeycomb", "hook", "hoopskirt", "horizontal bar", "horse cart", "hourglass", "iPod", "iron", "jack-o'-lantern", "jean", "jeep", "jersey", "jigsaw puzzle", "jinrikisha", "joystick", "kimono", "knee pad", "knot", "lab coat", "ladle", "lampshade", "laptop", "lawn mower", "lens cap", "letter opener", "library", "lifeboat", "lighter", "limousine", "liner", "lipstick", "Loafer", "lotion", "loudspeaker", "loupe", "lumbermill", "magnetic compass", "mailbag", "mailbox", "maillot", "maillot", "manhole cover", "maraca", "marimba", "mask", "matchstick", "maypole", "maze", "measuring cup", "medicine chest", "megalith", "microphone", "microwave", "military uniform", "milk can", "minibus", "miniskirt", "minivan", "missile", "mitten", "mixing bowl", "mobile home", "Model T", "modem", "monastery", "monitor", "moped", "mortar", "mortarboard", "mosque", "mosquito net", "motor scooter", "mountain bike", "mountain tent", "mouse", "mousetrap", "moving van", "muzzle", "nail", "neck brace", "necklace", "nipple", "notebook", "obelisk", "oboe", "ocarina", "odometer", "oil filter", "organ", "oscilloscope", "overskirt", "oxcart", "oxygen mask", "packet", "paddle", "paddlewheel", "padlock", "paintbrush", "pajama", "palace", "panpipe", "paper towel", "parachute", "parallel bars", "park bench", "parking meter", "passenger car", "patio", "pay-phone", "pedestal", "pencil box", "pencil sharpener", "perfume", "Petri dish", "photocopier", "pick", "pickelhaube", "picket fence", "pickup", "pier", "piggy bank", "pill bottle", "pillow", "ping-pong ball", "pinwheel", "pirate", "pitcher", "plane", "planetarium", "plastic bag", "plate rack", "plow", "plunger", "Polaroid camera", "pole", "police van", "poncho", "pool table", "pop bottle", "pot", "potter's wheel", "power drill", "prayer rug", "printer", "prison", "projectile", "projector", "puck", "punching bag", "purse", "quill", "quilt", "racer", "racket", "radiator", "radio", "radio telescope", "rain barrel", "recreational vehicle", "reel", "reflex camera", "refrigerator", "remote control", "restaurant", "revolver", "rifle", "rocking chair", "rotisserie", "rubber eraser", "rugby ball", "rule", "running shoe", "safe", "safety pin", "saltshaker", "sandal", "sarong", "sax", "scabbard", "scale", "school bus", "schooner", "scoreboard", "screen", "screw", "screwdriver", "seat belt", "sewing machine", "shield", "shoe shop", "shoji", "shopping basket", "shopping cart", "shovel", "shower cap", "shower curtain", "ski", "ski mask", "sleeping bag", "slide rule", "sliding door", "slot", "snorkel", "snowmobile", "snowplow", "soap dispenser", "soccer ball", "sock", "solar dish", "sombrero", "soup bowl", "space bar", "space heater", "space shuttle", "spatula", "speedboat", "spider web", "spindle", "sports car", "spotlight", "stage", "steam locomotive", "steel arch bridge", "steel drum", "stethoscope", "stole", "stone wall", "stopwatch", "stove", "strainer", "streetcar", "stretcher", "studio couch", "stupa", "submarine", "suit", "sundial", "sunglass", "sunglasses", "sunscreen", "suspension bridge", "swab", "sweatshirt", "swimming trunks", "swing", "switch", "syringe", "table lamp", "tank", "tape player", "teapot", "teddy", "television", "tennis ball", "thatch", "theater curtain", "thimble", "thresher", "throne", "tile roof", "toaster", "tobacco shop", "toilet seat", "torch", "totem pole", "tow truck", "toyshop", "tractor", "trailer truck", "tray", "trench coat", "tricycle", "trimaran", "tripod", "triumphal arch", "trolleybus", "trombone", "tub", "turnstile", "typewriter keyboard", "umbrella", "unicycle", "upright", "vacuum", "vase", "vault", "velvet", "vending machine", "vestment", "viaduct", "violin", "volleyball", "waffle iron", "wall clock", "wallet", "wardrobe", "warplane", "washbasin", "washer", "water bottle", "water jug", "water tower", "whiskey jug", "whistle", "wig", "window screen", "window shade", "Windsor tie", "wine bottle", "wing", "wok", "wooden spoon", "wool", "worm fence", "wreck", "yawl", "yurt", "web site", "comic book", "crossword puzzle", "street sign", "traffic light", "book jacket", "menu", "plate", "guacamole", "consomme", "hot pot", "trifle", "ice cream", "ice lolly", "French loaf", "bagel", "pretzel", "cheeseburger", "hotdog", "mashed potato", "head cabbage", "broccoli", "cauliflower", "zucchini", "spaghetti squash", "acorn squash", "butternut squash", "cucumber", "artichoke", "bell pepper", "cardoon", "mushroom", "Granny Smith", "strawberry", "orange", "lemon", "fig", "pineapple", "banana", "jackfruit", "custard apple", "pomegranate", "hay", "carbonara", "chocolate sauce", "dough", "meat loaf", "pizza", "potpie", "burrito", "red wine", "espresso", "cup", "eggnog", "alp", "bubble", "cliff", "coral reef", "geyser", "lakeside", "promontory", "sandbar", "seashore", "valley", "volcano", "ballplayer", "groom", "scuba diver", "rapeseed", "daisy", "yellow lady's slipper", "corn", "acorn", "hip", "buckeye", "coral fungus", "agaric", "gyromitra", "stinkhorn", "earthstar", "hen-of-the-woods", "bolete", "ear", "toilet tissue"};
+std::vector<std::string> readLabelsFile(const char *path)
+{
+  std::vector<std::string> myvector;
+  std::fstream newfile;
+  newfile.open(path, ios::in);
+  if (newfile.is_open())
+  {
+    string tp;
+    while (getline(newfile, tp))
+    {
+      myvector.push_back(tp);
+    }
+    newfile.close();
+  }
+
+  return myvector;
+}
 
 void normalize_1_1(PixelFloat &pixel)
 {
@@ -72,6 +90,22 @@ auto cvtTensor(TfLiteTensor *tensor) -> vector<float>
   return data;
 }
 
+cv::ImreadModes string2ImreadModesEnum(std::string str)
+{
+  static std::unordered_map<std::string, cv::ImreadModes> const table = {
+      {"IMREAD_GRAYSCALE", cv::ImreadModes::IMREAD_GRAYSCALE},
+      {"IMREAD_COLOR", cv::ImreadModes::IMREAD_COLOR}};
+  auto it = table.find(str);
+  if (it != table.end())
+  {
+    return it->second;
+  }
+  else
+  {
+    return cv::ImreadModes::IMREAD_COLOR;
+  }
+}
+
 #define TFLITE_MINIMAL_CHECK(x)                              \
   if (!(x))                                                  \
   {                                                          \
@@ -81,25 +115,39 @@ auto cvtTensor(TfLiteTensor *tensor) -> vector<float>
 
 int main(int argc, char *argv[])
 {
-  if (argc < 3)
-  {
-    fprintf(stderr, "minimal <tflite model> <Image>\n");
-    return -1;
-  }
+  cv::CommandLineParser parser(argc, argv,
+                               "{@image      |            |The image file to segment or classify}"
+                               "{@model      |            |The .tflite model file)}"
+                               "{labels     l|            |The labels .txt file}"
+                               "{imageType it|IMREAD_COLOR|Can be: IMREAD_COLOR IMREAD_GRAYSCALE}"
+                               "{mode       m|FLOAT       |Can be: FLOAT CHAR}");
+  parser.printMessage();
+  String imagePathString = parser.get<String>("@image");
+  String modelPathString = parser.get<String>("@model");
+  String labelsPathString = parser.get<String>("labels");
+  String imageTypeString = parser.get<String>("imageType");
+  String modeString = parser.get<String>("mode");
+
+  cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
+
+  const char *modelPath = modelPathString.c_str();
+  const char *imagePath = imagePathString.c_str();
+  const char *labelsPath = labelsPathString.c_str();
 
   cv::Mat image;
-  image = cv::imread(argv[2], cv::IMREAD_COLOR);
+  image = cv::imread(imagePath, imageType);
   if (!image.data)
   {
     printf("No image data \n");
-    return -1;
+    return EXIT_FAILURE;
   }
 
-  const char *filename = argv[1];
+  // Load labels path
+  std::vector<string> class_names = readLabelsFile(labelsPath);
 
   // Load model
   std::unique_ptr<tflite::FlatBufferModel> model =
-      tflite::FlatBufferModel::BuildFromFile(filename);
+      tflite::FlatBufferModel::BuildFromFile(modelPath);
   TFLITE_MINIMAL_CHECK(model != nullptr);
 
   // Build the interpreter with the InterpreterBuilder.
@@ -115,7 +163,7 @@ int main(int argc, char *argv[])
   // Allocate tensor buffers.
   TFLITE_MINIMAL_CHECK(interpreter->AllocateTensors() == kTfLiteOk);
   printf("=== Pre-invoke Interpreter State ===\n");
-  tflite::PrintInterpreterState(interpreter.get());
+  // tflite::PrintInterpreterState(interpreter.get());
 
   // get input & output layer
   TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
@@ -129,45 +177,81 @@ int main(int argc, char *argv[])
   cout << "WIDTH_M=" << WIDTH_M << endl;
   cout << "CHANNEL_M=" << CHANNEL_M << endl;
 
-  /*
-  cv::Mat inputImg = matPreprocessChar(image, WIDTH_M, HEIGHT_M);
-  memcpy(input_tensor->data.f, inputImg.ptr<char>(0),
-         WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(char));
-  */
-
-  cv::Mat inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
-  memcpy(input_tensor->data.f, inputImg.ptr<float>(0),
-         WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(float));
-
-  /*
-  for (int y = 0; y < HEIGHT_M; y++)
+  cv::Mat inputImg;
+  if (modeString.compare("CHAR") == 0)
   {
-    for (int x = 0; x < WIDTH_M; x++)
+    inputImg = matPreprocessChar(image, WIDTH_M, HEIGHT_M);
+    memcpy(input_tensor->data.f, inputImg.ptr<char>(0),
+           WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(char));
+  }
+  else if (modeString.compare("OWN_FLOAT1") == 0)
+  {
+    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    for (int y = 0; y < HEIGHT_M; y++)
     {
-      Pixel *pixel = inputImg.ptr<Pixel>(x, y);
-
-      // interpreter->typed_input_tensor<float>(0)[y * WIDTH_M + x + 0] = 0;
-      // interpreter->typed_input_tensor<float>(0)[y * WIDTH_M + x + 1] = 0;
-      // interpreter->typed_input_tensor<float>(0)[y * WIDTH_M + x + 2] = 0;
-
-      input_tensor->data.f[y * WIDTH_M + x + 0] = pixel->x;
-      input_tensor->data.f[y * WIDTH_M + x + 1] = pixel->y;
-      input_tensor->data.f[y * WIDTH_M + x + 2] = pixel->z;
-
-      // cout << pixel->x << endl;
-
-      //input_tensor->data.f[x * HEIGHT_M + y + 0] = pixel->x;
-      //input_tensor->data.f[x * HEIGHT_M + y + 1] = pixel->y;
-      //input_tensor->data.f[x * HEIGHT_M + y + 2] = pixel->z;
+      for (int x = 0; x < WIDTH_M; x++)
+      {
+        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
+        input_tensor->data.f[(y * WIDTH_M + x)*CHANNEL_M + 0] = pixel->x;
+        input_tensor->data.f[(y * WIDTH_M + x)*CHANNEL_M + 1] = pixel->y;
+        input_tensor->data.f[(y * WIDTH_M + x)*CHANNEL_M + 2] = pixel->z;
+      }
     }
   }
-  */
+  else if (modeString.compare("OWN_FLOAT2") == 0)
+  {
+    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    for (int y = 0; y < HEIGHT_M; y++)
+    {
+      for (int x = 0; x < WIDTH_M; x++)
+      {
+        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
+        input_tensor->data.f[(x * HEIGHT_M + y)*CHANNEL_M + 0] = pixel->x;
+        input_tensor->data.f[(x * HEIGHT_M + y)*CHANNEL_M + 1] = pixel->y;
+        input_tensor->data.f[(x * HEIGHT_M + y)*CHANNEL_M + 2] = pixel->z;
+      }
+    }
+  }
+  else if (modeString.compare("OWN_FLOAT3") == 0)
+  {
+    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    for (int y = 0; y < HEIGHT_M; y++)
+    {
+      for (int x = 0; x < WIDTH_M; x++)
+      {
+        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
+        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 0] = pixel->x;
+        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 1] = pixel->y;
+        interpreter->typed_input_tensor<float>(0)[(y * WIDTH_M + x)*CHANNEL_M + 2] = pixel->z;
+      }
+    }
+  }
+  else if (modeString.compare("OWN_FLOAT4") == 0)
+  {
+    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    for (int y = 0; y < HEIGHT_M; y++)
+    {
+      for (int x = 0; x < WIDTH_M; x++)
+      {
+        PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
+        interpreter->typed_input_tensor<float>(0)[(x * HEIGHT_M + y)*CHANNEL_M + 0] = pixel->x;
+        interpreter->typed_input_tensor<float>(0)[(x * HEIGHT_M + y)*CHANNEL_M + 1] = pixel->y;
+        interpreter->typed_input_tensor<float>(0)[(x * HEIGHT_M + y)*CHANNEL_M + 2] = pixel->z;
+      }
+    }
+  }
+  else
+  {
+    inputImg = matPreprocessFloat(image, WIDTH_M, HEIGHT_M);
+    memcpy(input_tensor->data.f, inputImg.ptr<float>(0),
+           WIDTH_M * HEIGHT_M * CHANNEL_M * sizeof(float));
+  }
 
   cout << "Run inference" << endl;
   // Run inference
   TFLITE_MINIMAL_CHECK(interpreter->Invoke() == kTfLiteOk);
   printf("\n\n=== Post-invoke Interpreter State ===\n");
-  tflite::PrintInterpreterState(interpreter.get());
+  // tflite::PrintInterpreterState(interpreter.get());
 
   cout << "Get Output Tensor..." << endl;
   float *outputLayer = interpreter->typed_output_tensor<float>(0);
