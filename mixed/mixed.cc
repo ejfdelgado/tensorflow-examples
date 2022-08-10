@@ -135,6 +135,33 @@ cv::ImreadModes string2ImreadModesEnum(std::string str)
   }
 }
 
+template <typename T>
+void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint classIndex, std::vector<string> class_names)
+{
+  TfLiteTensor *output_score = (*interpreter)->tensor((*interpreter)->outputs()[classIndex]);
+  vector<T> score_vec = cvtTensor(output_score);
+  T maxValue = 0;
+  int maxIndex = -1;
+  for (auto it = score_vec.begin(); it != score_vec.end(); it++)
+  {
+    int index = std::distance(score_vec.begin(), it);
+    if (maxIndex == -1 || *it > maxValue)
+    {
+      maxValue = *it;
+      maxIndex = index;
+    }
+  }
+  uint classSize = class_names.size();
+  std::cout << "[";
+  std::cout << "{\"i\":" << maxIndex << ", ";
+  if (maxIndex < classSize)
+  {
+    std::cout << "\"c\":\"" << class_names[maxIndex] << "\", ";
+  }
+  std::cout << "\"v\":" << maxValue << "},";
+  std::cout << "]" << std::endl;
+}
+
 #define TFLITE_MINIMAL_CHECK(x)                              \
   if (!(x))                                                  \
   {                                                          \
@@ -161,12 +188,9 @@ int main(int argc, char *argv[])
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
 
-  const char *modelPath = modelPathString.c_str();
-  const char *imagePath = imagePathString.c_str();
-  const char *labelsPath = labelsPathString.c_str();
-
+  // Load image
   cv::Mat image;
-  image = cv::imread(imagePath, imageType);
+  image = cv::imread(imagePathString.c_str(), imageType);
   if (!image.data)
   {
     printf("No image data \n");
@@ -174,40 +198,33 @@ int main(int argc, char *argv[])
   }
 
   // Load labels path
-  std::vector<string> class_names = readLabelsFile(labelsPath);
+  std::vector<string> class_names;
+  if (labelsPathString.compare("") != 0)
+  {
+    std::cout << "Reading labels..." << std::endl;
+    class_names = readLabelsFile(labelsPathString.c_str());
+  }
 
   // Load model
   std::unique_ptr<tflite::FlatBufferModel> model =
-      tflite::FlatBufferModel::BuildFromFile(modelPath);
+      tflite::FlatBufferModel::BuildFromFile(modelPathString.c_str());
   TFLITE_MINIMAL_CHECK(model != nullptr);
-
-  // Build the interpreter with the InterpreterBuilder.
-  // Note: all Interpreters should be built with the InterpreterBuilder,
-  // which allocates memory for the Interpreter and does various set up
-  // tasks so that the Interpreter can read the provided model.
   tflite::ops::builtin::BuiltinOpResolver resolver;
   tflite::InterpreterBuilder builder(*model, resolver);
   std::unique_ptr<tflite::Interpreter> interpreter;
   builder(&interpreter);
   TFLITE_MINIMAL_CHECK(interpreter != nullptr);
-
   // Allocate tensor buffers.
   TFLITE_MINIMAL_CHECK(interpreter->AllocateTensors() == kTfLiteOk);
   printf("=== Pre-invoke Interpreter State ===\n");
   // tflite::PrintInterpreterState(interpreter.get());
-
   // get input & output layer
   TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
-  TfLiteTensor *output_score = interpreter->tensor(interpreter->outputs()[0]);
 
   const uint HEIGHT_M = input_tensor->dims->data[1];
   const uint WIDTH_M = input_tensor->dims->data[2];
   const uint CHANNEL_M = input_tensor->dims->data[3];
-
-  cout << "HEIGHT_M=" << HEIGHT_M << endl;
-  cout << "WIDTH_M=" << WIDTH_M << endl;
-  cout << "CHANNEL_M=" << CHANNEL_M << endl;
-
+  std::cout << "(" << HEIGHT_M << "x" << WIDTH_M << "x" << CHANNEL_M << ")" << std::endl;
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
@@ -218,32 +235,12 @@ int main(int argc, char *argv[])
     image2tensor<float>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
   }
 
-  cout << "Run inference" << endl;
-  // Run inference
+  std::cout << "Run inference..." << std::endl;
   TFLITE_MINIMAL_CHECK(interpreter->Invoke() == kTfLiteOk);
   printf("\n\n=== Post-invoke Interpreter State ===\n");
   // tflite::PrintInterpreterState(interpreter.get());
 
-  cout << "Get Output Tensor..." << endl;
-  float *outputLayer = interpreter->typed_output_tensor<float>(0);
-  // cout << "Print final result..." << outputLayer[0] << endl;
-
-  vector<float> score_vec = cvtTensor(output_score);
-  float maxValue = 0;
-  int maxIndex = -1;
-  int maxIndex2 = -1;
-  for (auto it = score_vec.begin(); it != score_vec.end(); it++)
-  {
-    int index = std::distance(score_vec.begin(), it);
-    if (maxIndex == -1 || *it > maxValue)
-    {
-      maxIndex2 = maxIndex;
-      maxValue = *it;
-      maxIndex = index;
-    }
-  }
-  std::cout << "className:" << class_names[maxIndex] << ", maxElementIndex:" << maxIndex << ", maxElement:" << maxValue << '\n';
-  std::cout << "className:" << class_names[maxIndex2] << ", maxElementIndex:" << maxIndex2 << ", maxElement:" << score_vec[maxIndex2] << '\n';
+  printTopClass<float>(&interpreter, 0, class_names);
 
   return 0;
 }
