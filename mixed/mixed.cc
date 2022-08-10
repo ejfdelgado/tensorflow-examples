@@ -13,9 +13,9 @@
 // https://www.tensorflow.org/lite/examples
 // cmake --build . -j 4
 // Usage:
-// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -si=0
-// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6
-// ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6
+// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -si=0 -th=0.6
+// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -r=1
+// ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -r=1
 // ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_GRAYSCALE -m=FLOAT -n=10 -si=0
 
 using namespace cv;
@@ -148,30 +148,57 @@ cv::ImreadModes string2ImreadModesEnum(std::string str)
   }
 }
 
+struct DataIndexVal
+{
+  int index;
+  float value;
+};
+
+bool compareByValue(const DataIndexVal &a, const DataIndexVal &b)
+{
+  return b.value < a.value;
+}
+
 template <typename T>
-void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint classIndex, std::vector<string> class_names)
+void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint classIndex, std::vector<string> class_names, float scoreThreshold)
 {
   TfLiteTensor *output_score = (*interpreter)->tensor((*interpreter)->outputs()[classIndex]);
   vector<T> score_vec = cvtTensor(output_score);
   T maxValue = 0;
   int maxIndex = -1;
+
+  uint classSize = class_names.size();
+  std::vector<DataIndexVal> passThreshold;
   for (auto it = score_vec.begin(); it != score_vec.end(); it++)
   {
-    int index = std::distance(score_vec.begin(), it);
-    if (maxIndex == -1 || *it > maxValue)
+    DataIndexVal nueva;
+    nueva.index = std::distance(score_vec.begin(), it);
+    ;
+    nueva.value = *it;
+    passThreshold.push_back(nueva);
+  }
+  std::sort(passThreshold.begin(), passThreshold.end(), compareByValue);
+  std::vector<DataIndexVal> filteredVector;
+  std::copy_if(passThreshold.begin(), passThreshold.end(), std::back_inserter(filteredVector), [scoreThreshold](DataIndexVal i)
+               { return i.value >= scoreThreshold; });
+  std::cout << "[";
+  uint filteredVectorSize = filteredVector.size();
+  for (auto it = filteredVector.begin(); it != filteredVector.end(); it++)
+  {
+    int index = std::distance(filteredVector.begin(), it);
+    const uint maxIndex = (*it).index;
+    const float maxValue = (*it).value;
+    std::cout << "{\"i\":" << maxIndex << ", ";
+    if (maxIndex < classSize)
     {
-      maxValue = *it;
-      maxIndex = index;
+      std::cout << "\"c\":\"" << class_names[maxIndex] << "\", ";
+    }
+    std::cout << "\"v\":" << maxValue << "}";
+    if (index < filteredVectorSize - 1)
+    {
+      std::cout << ", ";
     }
   }
-  uint classSize = class_names.size();
-  std::cout << "[";
-  std::cout << "{\"i\":" << maxIndex << ", ";
-  if (maxIndex < classSize)
-  {
-    std::cout << "\"c\":\"" << class_names[maxIndex] << "\", ";
-  }
-  std::cout << "\"v\":" << maxValue << "}";
   std::cout << "]" << std::endl;
 }
 
@@ -269,7 +296,8 @@ int main(int argc, char *argv[])
                                "{classIndex ci|-1          |Number of class index}"
                                "{scoreIndex si|-1          |Number of score index. Segmentation only.}"
                                "{boxIndex   bi|-1          |Number of box index. Segmentation only.}"
-                               "{threshold  th|0.6         |Threshold for score. Segmentation only.}");
+                               "{threshold  th|0.6         |Threshold for score. Segmentation only.}"
+                               "{render     r |0           |Render the output image. Segmentation only.}");
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
   String modelPathString = parser.get<String>("@model");
@@ -281,6 +309,7 @@ int main(int argc, char *argv[])
   int scoreIndex = parser.get<int>("scoreIndex");
   int boxIndex = parser.get<int>("boxIndex");
   float scoreThreshold = parser.get<float>("threshold");
+  bool renderOutput = parser.get<float>("render");
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
 
@@ -343,12 +372,12 @@ int main(int argc, char *argv[])
 
   if (scoreIndex >= 0)
   {
-    printTopClass<float>(&interpreter, scoreIndex, class_names);
+    printTopClass<float>(&interpreter, scoreIndex, class_names, scoreThreshold);
   }
 
   if (classIndex >= 0 && scoreIndex >= 0 && boxIndex >= 0)
   {
-    printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, true, image);
+    printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, renderOutput, image);
   }
 
   return 0;
