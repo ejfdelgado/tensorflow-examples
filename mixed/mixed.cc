@@ -87,18 +87,21 @@ auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint ty
 }
 
 template <typename T>
-void migate2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint HEIGHT_M, uint CHANNEL_M, uint type)
+void image2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint HEIGHT_M, uint CHANNEL_M, uint type)
 {
   cv::Mat inputImg;
   inputImg = matPreprocess<T>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, type);
+  float *pixel = inputImg.ptr<float>(0, 0);
   for (uint y = 0; y < HEIGHT_M; y++)
   {
     for (uint x = 0; x < WIDTH_M; x++)
     {
-      PixelFloat *pixel = inputImg.ptr<PixelFloat>(x, y);
-      input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 0] = pixel->x;
-      input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 1] = pixel->y;
-      input_tensor->data.f[(y * WIDTH_M + x) * CHANNEL_M + 2] = pixel->z;
+      for (uint z = 0; z < CHANNEL_M; z++)
+      {
+        uint xind = (y * WIDTH_M + x) * CHANNEL_M + z;
+        uint xind2 = (x * HEIGHT_M + y) * CHANNEL_M + z;
+        input_tensor->data.f[xind] = pixel[xind2];
+      }
     }
   }
   return;
@@ -208,11 +211,11 @@ int main(int argc, char *argv[])
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
-    migate2tensor<char>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
+    image2tensor<char>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
   }
   else if (modeString.compare("FLOAT") == 0)
   {
-    migate2tensor<float>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
+    image2tensor<float>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
   }
 
   cout << "Run inference" << endl;
