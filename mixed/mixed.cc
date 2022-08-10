@@ -13,6 +13,8 @@
 // cmake --build . -j 4
 // Usage:
 // ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10
+// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -it=IMREAD_COLOR -m=CHAR -n=256 -ci=2
+// ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10
 
 using namespace cv;
 using namespace std;
@@ -70,18 +72,25 @@ auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint ty
   cv::Mat dst;
   if (type == 10 || type == 11)
   {
+    std::cout << "convertTo CV_32FC3" << std::endl;
     src.convertTo(dst, CV_32FC3);
   }
   else if (type == 256)
   {
+    std::cout << "clone" << std::endl;
     dst = src.clone();
   }
   if (nChanells == 3)
   {
     // Only if RGB swap R with B
+    std::cout << "cvtColor COLOR_BGR2RGB" << std::endl;
     cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
   }
-  genericNormalize<T>(dst, nChanells, 10);
+  if (type == 10 || type == 11) {
+    std::cout << "genericNormalize" << std::endl;
+    genericNormalize<T>(dst, nChanells, type);
+  }
+  std::cout << "resize" << std::endl;
   cv::resize(dst, dst, cv::Size(width, height));
   return dst;
 }
@@ -91,7 +100,7 @@ void image2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint 
 {
   cv::Mat inputImg;
   inputImg = matPreprocess<T>(image, WIDTH_M, HEIGHT_M, CHANNEL_M, type);
-  float *pixel = inputImg.ptr<float>(0, 0);
+  T *pixel = inputImg.ptr<T>(0, 0);
   for (uint y = 0; y < HEIGHT_M; y++)
   {
     for (uint x = 0; x < WIDTH_M; x++)
@@ -172,12 +181,14 @@ void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint class
 int main(int argc, char *argv[])
 {
   cv::CommandLineParser parser(argc, argv,
-                               "{@image      |            |The image file to segment or classify}"
-                               "{@model      |            |The .tflite model file)}"
-                               "{labels     l|            |The labels .txt file}"
-                               "{imageType it|IMREAD_COLOR|Can be: IMREAD_COLOR IMREAD_GRAYSCALE}"
-                               "{mode       m|FLOAT       |Can be: FLOAT CHAR}"
-                               "{normalize  n|10          |Can be: 11 10 256}");
+                               "{@image       |            |The image file to segment or classify}"
+                               "{@model       |            |The .tflite model file)}"
+                               "{labels     l |            |The labels .txt file}"
+                               "{imageType it |IMREAD_COLOR|Can be: IMREAD_COLOR IMREAD_GRAYSCALE}"
+                               "{mode       m |FLOAT       |Can be: FLOAT CHAR}"
+                               "{normalize  n |10          |Can be: 11 10 256}"
+                               "{classIndex ci|0           |Number of class index}"
+                               );
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
   String modelPathString = parser.get<String>("@model");
@@ -185,6 +196,7 @@ int main(int argc, char *argv[])
   String imageTypeString = parser.get<String>("imageType");
   String modeString = parser.get<String>("mode");
   int normalize = parser.get<int>("normalize");
+  int classIndex = parser.get<int>("classIndex");
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
 
@@ -240,7 +252,7 @@ int main(int argc, char *argv[])
   printf("\n\n=== Post-invoke Interpreter State ===\n");
   // tflite::PrintInterpreterState(interpreter.get());
 
-  printTopClass<float>(&interpreter, 0, class_names);
+  printTopClass<float>(&interpreter, classIndex, class_names);
 
   return 0;
 }
