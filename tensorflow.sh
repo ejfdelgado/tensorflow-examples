@@ -74,7 +74,7 @@ mkdir mixed-build
 cd mixed-build
 cmake ../mixed
 cmake --build . -j 4
-./mixed ../tensor_python/models/joyce.jpg
+./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -si=0 -th=0.6
 node ../utils/shared-libs.js mixed mixed.zip
 aws s3api put-object --bucket ejfdelgado-simple --key libs/mixed.zip --body mixed.zip
 
