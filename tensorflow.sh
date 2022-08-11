@@ -64,17 +64,17 @@ cd minimal-tf-build
 cmake ../minimal-tf
 cmake --build . -j 4
 ./minimal ../tensor_python/models/petals.tflite 5.0 3.2 1.2 0.2
-node /home/ec2-user/tensorflow-examples/utils/shared-libs.js minimal minimal.zip
+node ../utils/shared-libs.js minimal minimal.zip
 aws s3api put-object --bucket ejfdelgado-simple --key libs/minimal.zip --body minimal.zip
 
 cd ..
 
-# Build opencv minimal
-mkdir segmentation-build
-cd segmentation-build
-cmake ../segmentation
+# Build opencv mixed
+mkdir mixed-build
+cd mixed-build
+cmake ../mixed
 cmake --build . -j 4
-./segment ../tensor_python/models/joyce.jpg
-node /home/ec2-user/tensorflow-examples/utils/shared-libs.js segment segment.zip
-aws s3api put-object --bucket ejfdelgado-simple --key libs/segment.zip --body segment.zip
+./mixed ../tensor_python/models/joyce.jpg
+node ../utils/shared-libs.js mixed mixed.zip
+aws s3api put-object --bucket ejfdelgado-simple --key libs/mixed.zip --body mixed.zip
 
