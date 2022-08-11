@@ -19,8 +19,8 @@
 // node ../utils/shared-libs.js ./mixed
 // Usage:
 // ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/mobilenet/mobilenet_v2_1.0_224.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_quant_v1_224.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -si=0 -th=0.6
-// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -r=1
-// ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -r=1
+// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -outfolder=./
+// ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -outfolder=./
 // ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_GRAYSCALE -m=FLOAT -n=10 -si=0
 
 using namespace cv;
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
                                "{scoreIndex si|-1          |Number of score index. Segmentation only.}"
                                "{boxIndex   bi|-1          |Number of box index. Segmentation only.}"
                                "{threshold  th|0.6         |Threshold for score. Segmentation only.}"
-                               "{render     r |0           |Render the output image. Segmentation only.}");
+                               "{outfolder    |            |The output folder. Segmentation only.}");
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
   String modelPathString = parser.get<String>("@model");
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
   int scoreIndex = parser.get<int>("scoreIndex");
   int boxIndex = parser.get<int>("boxIndex");
   float scoreThreshold = parser.get<float>("threshold");
-  bool renderOutput = parser.get<float>("render");
+  String outfolder = parser.get<String>("outfolder");
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 
   if (classIndex >= 0 && scoreIndex >= 0 && boxIndex >= 0)
   {
-    printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, renderOutput, image);
+    printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, outfolder, image);
   }
 
   return 0;

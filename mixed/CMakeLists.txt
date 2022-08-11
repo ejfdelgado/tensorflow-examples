@@ -4,8 +4,8 @@ project(mixed C CXX)
 find_package( OpenCV REQUIRED )
 
 SET(ABSL_PROPAGATE_CXX_STD ON)
-#SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
-SET(TENSOR_FLOW_SRC "/home/ec2-user")
+SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
+#SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 

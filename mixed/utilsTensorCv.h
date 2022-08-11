@@ -74,7 +74,7 @@ void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint class
 }
 
 template <typename T>
-void printSegmented(std::unique_ptr<tflite::Interpreter> *interpreter, float scoreThreshold, uint boxIndex, uint scoreIndex, uint classIndex, std::vector<std::string> class_names, bool renderOutput, cv::Mat image)
+void printSegmented(std::unique_ptr<tflite::Interpreter> *interpreter, float scoreThreshold, uint boxIndex, uint scoreIndex, uint classIndex, std::vector<std::string> class_names, std::string outfolder, cv::Mat image)
 {
 
   // Ubicaciones
@@ -138,12 +138,13 @@ void printSegmented(std::unique_ptr<tflite::Interpreter> *interpreter, float sco
   }
   std::cout << "]" << std::endl;
 
-  if (renderOutput)
+  if (outfolder.compare("") != 0)
   {
     std::vector<int> ids;
     cv::dnn::NMSBoxes(rects, scores, 0.6, 0.4, ids);
     for (int tmp : ids)
       cv::rectangle(image, rects[tmp], cv::Scalar(0, 255, 0), 3);
-    cv::imwrite("./result.jpg", image);
+    std::string fullPath = outfolder + "result.jpg";
+    cv::imwrite(fullPath.c_str(), image);
   }
 }
