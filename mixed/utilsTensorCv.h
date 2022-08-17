@@ -218,15 +218,6 @@ void printYoloV5(
   float y_factor = input_image.rows;
   float *data = (float *)output_box0->data.f;
 
-  std::cout << "rows:" << rows << std::endl;
-  std::cout << "dimensions:" << dimensions << std::endl;
-  std::cout << "totalSize:" << totalSize << std::endl;
-  std::cout << "numberOfClasses:" << numberOfClasses << std::endl;
-  std::cout << "CONFIDENCE_THRESHOLD:" << CONFIDENCE_THRESHOLD << std::endl;
-  std::cout << "SCORE_THRESHOLD:" << SCORE_THRESHOLD << std::endl;
-  std::cout << "x_factor:" << x_factor << std::endl;
-  std::cout << "y_factor:" << y_factor << std::endl;
-
   // 25200 for default size 640.
   // Iterate through 25200 detections.
   for (uint i = 0; i < rows; ++i)
