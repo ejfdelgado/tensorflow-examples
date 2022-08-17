@@ -22,9 +22,9 @@
 // ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -outfolder=./
 // ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -outfolder=./
 // ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_GRAYSCALE -m=FLOAT -n=10 -si=0
-// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.25
-// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.25
-// ./mixed ../tensor_python/models/zebra.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.25
+// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
+// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
+// ./mixed ../tensor_python/models/zebra.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
 
 using namespace cv;
 using namespace std;
@@ -35,21 +35,6 @@ using namespace std;
     fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
     exit(1);                                                 \
   }
-
-std::vector<cv::Mat> pre_process(cv::Mat &input_image, cv::dnn::Net &net, uint INPUT_WIDTH, uint INPUT_HEIGHT)
-{
-  // Convert to blob.
-  cv::Mat blob;
-  cv::dnn::blobFromImage(input_image, blob, 1. / 255., Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(), true, false);
-
-  net.setInput(blob);
-
-  // Forward propagate.
-  std::vector<cv::Mat> outputs;
-  net.forward(outputs, net.getUnconnectedOutLayersNames());
-
-  return outputs;
-}
 
 int main(int argc, char *argv[])
 {
@@ -62,8 +47,11 @@ int main(int argc, char *argv[])
                                "{normalize  n |10          |Can be: 11 10 256}"
                                "{classIndex ci|-1          |Number of class index}"
                                "{scoreIndex si|-1          |Number of score index. Segmentation only.}"
+                               "{yoloIndex yi |-1          |Number of yolo index. Segmentation only.}"
                                "{boxIndex   bi|-1          |Number of box index. Segmentation only.}"
                                "{threshold  th|0.6         |Threshold for score. Segmentation only.}"
+                               "{sth          |0.5         |Threshold for class. Segmentation only.}"
+                               "{nmsth        |0.45        |Threshold for nms. Segmentation only.}"
                                "{outfolder    |            |The output folder. Segmentation only.}");
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
@@ -75,7 +63,10 @@ int main(int argc, char *argv[])
   int classIndex = parser.get<int>("classIndex");
   int scoreIndex = parser.get<int>("scoreIndex");
   int boxIndex = parser.get<int>("boxIndex");
+  int yoloIndex = parser.get<int>("yoloIndex");
   float scoreThreshold = parser.get<float>("threshold");
+  float sth = parser.get<float>("sth");
+  float nmsth = parser.get<float>("nmsth");
   String outfolder = parser.get<String>("outfolder");
 
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
@@ -148,16 +139,19 @@ int main(int argc, char *argv[])
     printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, outfolder, image);
   }
 
-/*
-  std::vector<cv::Rect> res = printYoloV5(
-      &interpreter,
-      image,
-      class_names,
-      scoreThreshold, // CONFIDENCE_THRESHOLD=0.45
-      0.5,            // SCORE_THRESHOLD=0.5 para la clase
-      WIDTH_M,
-      HEIGHT_M);
-      */
+  if (yoloIndex >= 0)
+  {
+    printYoloV5(
+        &interpreter,
+        image,
+        class_names,
+        scoreThreshold, // CONFIDENCE_THRESHOLD=0.45
+        sth,            // SCORE_THRESHOLD -sth para la clase
+        nmsth,          // NMS_THRESHOLD -nmsth
+        WIDTH_M,
+        HEIGHT_M,
+        outfolder);
+  }
 
   return 0;
 }

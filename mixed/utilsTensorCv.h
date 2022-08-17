@@ -179,15 +179,25 @@ void printSegmented(
 }
 
 // https://learnopencv.com/object-detection-using-yolov5-and-opencv-dnn-in-c-and-python/
-std::vector<cv::Rect> printYoloV5(
+void printYoloV5(
     std::unique_ptr<tflite::Interpreter> *interpreter,
     cv::Mat &input_image,
     const std::vector<std::string> &class_names,
     float CONFIDENCE_THRESHOLD,
     float SCORE_THRESHOLD,
+    float NMS_THRESHOLD,
     uint INPUT_WIDTH,
-    uint INPUT_HEIGHT)
+    uint INPUT_HEIGHT,
+    std::string outfolder)
 {
+  const int THICKNESS = 1;
+
+  // Colors.
+  cv::Scalar BLACK = cv::Scalar(0, 0, 0);
+  cv::Scalar BLUE = cv::Scalar(255, 178, 50);
+  cv::Scalar YELLOW = cv::Scalar(0, 255, 255);
+  cv::Scalar RED = cv::Scalar(0, 0, 255);
+
   TfLiteTensor *output_box0 = (*interpreter)->tensor((*interpreter)->outputs()[0]);
 
   uint rows = output_box0->dims->data[1];
@@ -229,12 +239,9 @@ std::vector<cv::Rect> printYoloV5(
     float h = data[3];
     float confidence = data[4];
 
-    // std::cout << "cx:" << cx << ", cy:" << cy << ", w:" << w << ", h" << h << ", confidence: " << confidence << std::endl;
-
     // Discard bad detections and continue.
     if (confidence >= CONFIDENCE_THRESHOLD)
     {
-      std::cout << "confidence:" << confidence << std::endl;
       float *classes_scores = data + 5;
       // Create a 1x85 Mat and store class scores of 80 classes.
       cv::Mat scores(1, numberOfClasses, CV_32FC1, classes_scores);
@@ -255,11 +262,49 @@ std::vector<cv::Rect> printYoloV5(
         int height = int(h * y_factor);
         // Store good detections in the boxes vector.
         boxes.push_back(cv::Rect(left, top, width, height));
-        std::cout << "Found " << class_id.x << " at " << left << ", " << top << ", " << width << "x" << height << std::endl;
       }
     }
     // Jump to the next row.
     data += dimensions;
   }
-  return boxes;
+
+  // Perform Non-Maximum Suppression and draw predictions.
+  std::vector<int> indices;
+  cv::dnn::NMSBoxes(boxes, confidences, SCORE_THRESHOLD, NMS_THRESHOLD, indices);
+  std::cout << "[";
+  uint nFoundObjects = indices.size();
+  uint classSize = class_names.size();
+  for (uint i = 0; i < nFoundObjects; i++)
+  {
+    int idx = indices[i];
+    cv::Rect box = boxes[idx];
+    int left = box.x;
+    int top = box.y;
+    int width = box.width;
+    int height = box.height;
+    uint classIndex = class_ids[idx];
+    // Draw bounding box.
+    cv::rectangle(input_image, cv::Point(left, top), cv::Point(left + width, top + height), BLUE, 3 * THICKNESS);
+    std::cout << "{\"i\":" << classIndex << ", ";
+    std::cout << "\"xi\":\"" << left << "\", ";
+    std::cout << "\"xf\":\"" << left + width << "\", ";
+    std::cout << "\"yi\":\"" << top << "\", ";
+    std::cout << "\"yf\":\"" << top + height << "\", ";
+    if (classIndex < classSize)
+    {
+      std::cout << "\"c\":\"" << class_names[classIndex] << "\", ";
+    }
+    std::cout << "\"v\":" << confidences[idx] << "}";
+    if (i < nFoundObjects - 1)
+    {
+      std::cout << ", ";
+    }
+  }
+  std::cout << "]" << std::endl;
+
+  if (outfolder.compare("") != 0)
+  {
+    std::string fullPath = outfolder + "result.jpg";
+    cv::imwrite(fullPath.c_str(), input_image);
+  }
 }
