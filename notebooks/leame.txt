@@ -1,0 +1,54 @@
+https://www.tensorflow.org/install/pip#virtual-environment-install
+
+source /home/ejfdelgado/venv/bin/activate
+deactivate
+
+sudo apt install python3-virtualenv
+virtualenv -p python3 envyolo
+
+source /home/ejfdelgado/envyolo/bin/activate
+
+https://www.tensorflow.org/install/docker?hl=es-419
+https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker
+
+docker run --runtime=nvidia --rm nvidia/cuda nvidia-smi
+
+docker pull tensorflow/tensorflow:latest-gpu-jupyter
+
+// Show running instances
+docker ps -a
+
+// Show images
+docker image ls
+
+docker container create --gpus all -it -p 8888:8888 -v /home/ejfdelgado/desarrollo/tensorflow-examples/notebooks:/tf/ --name tensorflow tensorflow/tensorflow:latest-gpu-jupyter
+
+docker start -i tensorflow
+
+docker stop tensorflow
+
+docker rm tensorflow
+
+docker exec -it tensorflow bash
+
+nvidia-smi
+
+apt-get install python3-opencv
+
+pip3 install cv2 tqdm
+
+pip3 install arcgis
+
+pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
+
+docker run --gpus all -it -p 8888:8888 -v /home/ejfdelgado/desarrollo/tensorflow-examples/notebooks:/tf/ tensorflow/tensorflow:latest-gpu-jupyter
+
+docker run --gpus all -it tensorflow/tensorflow:latest-gpu bash
+
+----------------------------------------------------------------------
+
+https://github.com/ultralytics/yolov5/blob/master/requirements.txt
+
+https://github.com/ultralytics/yolov3/wiki/Train-Custom-Data
+
+https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data

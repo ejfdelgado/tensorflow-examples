@@ -32,7 +32,28 @@ auto cvtTensor(TfLiteTensor *tensor) -> std::vector<float>
 }
 
 template <typename T>
-void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint classIndex, std::vector<std::string> class_names, float scoreThreshold)
+auto explainTensor(TfLiteTensor *tensor) -> std::vector<T>;
+
+auto explainTensor(std::string name, TfLiteTensor *tensor) -> void
+{
+  uint nelem = 1;
+  uint tamanio = tensor->dims->size;
+  std::cout << name << ".size=" << tamanio << "-----------------------------" << std::endl;
+  for (int i = 0; i < tamanio; ++i)
+  {
+    uint dimension = tensor->dims->data[i];
+    std::cout << name << "." << i << "=" << dimension << std::endl;
+    nelem *= dimension;
+  }
+  std::cout << name << ".total=" << nelem << std::endl;
+}
+
+template <typename T>
+void printTopClass(
+    std::unique_ptr<tflite::Interpreter> *interpreter,
+    uint classIndex,
+    std::vector<std::string> class_names,
+    float scoreThreshold)
 {
   TfLiteTensor *output_score = (*interpreter)->tensor((*interpreter)->outputs()[classIndex]);
   std::vector<T> score_vec = cvtTensor(output_score);
@@ -74,7 +95,15 @@ void printTopClass(std::unique_ptr<tflite::Interpreter> *interpreter, uint class
 }
 
 template <typename T>
-void printSegmented(std::unique_ptr<tflite::Interpreter> *interpreter, float scoreThreshold, uint boxIndex, uint scoreIndex, uint classIndex, std::vector<std::string> class_names, std::string outfolder, cv::Mat image)
+void printSegmented(
+    std::unique_ptr<tflite::Interpreter> *interpreter,
+    float scoreThreshold,
+    uint boxIndex,
+    uint scoreIndex,
+    uint classIndex,
+    std::vector<std::string> class_names,
+    std::string outfolder,
+    cv::Mat image)
 {
 
   // Ubicaciones
@@ -147,4 +176,90 @@ void printSegmented(std::unique_ptr<tflite::Interpreter> *interpreter, float sco
     std::string fullPath = outfolder + "result.jpg";
     cv::imwrite(fullPath.c_str(), image);
   }
+}
+
+// https://learnopencv.com/object-detection-using-yolov5-and-opencv-dnn-in-c-and-python/
+std::vector<cv::Rect> printYoloV5(
+    std::unique_ptr<tflite::Interpreter> *interpreter,
+    cv::Mat &input_image,
+    const std::vector<std::string> &class_names,
+    float CONFIDENCE_THRESHOLD,
+    float SCORE_THRESHOLD,
+    uint INPUT_WIDTH,
+    uint INPUT_HEIGHT)
+{
+  TfLiteTensor *output_box0 = (*interpreter)->tensor((*interpreter)->outputs()[0]);
+
+  uint rows = output_box0->dims->data[1];
+  uint dimensions = output_box0->dims->data[2];
+  uint totalSize = rows * dimensions;
+  uint numberOfClasses = dimensions - 5;
+
+  // Initialize vectors to hold respective outputs while unwrapping detections.
+  std::vector<int> class_ids;
+  std::vector<float> confidences;
+  std::vector<cv::Rect> boxes;
+  // Resizing factor.
+  /*
+  float x_factor = input_image.cols / (float)INPUT_WIDTH;
+  float y_factor = input_image.rows / (float)INPUT_HEIGHT;
+  */
+  float x_factor = input_image.cols;
+  float y_factor = input_image.rows;
+  float *data = (float *)output_box0->data.f;
+
+  std::cout << "rows:" << rows << std::endl;
+  std::cout << "dimensions:" << dimensions << std::endl;
+  std::cout << "totalSize:" << totalSize << std::endl;
+  std::cout << "numberOfClasses:" << numberOfClasses << std::endl;
+  std::cout << "CONFIDENCE_THRESHOLD:" << CONFIDENCE_THRESHOLD << std::endl;
+  std::cout << "SCORE_THRESHOLD:" << SCORE_THRESHOLD << std::endl;
+  std::cout << "x_factor:" << x_factor << std::endl;
+  std::cout << "y_factor:" << y_factor << std::endl;
+
+  // 25200 for default size 640.
+  // Iterate through 25200 detections.
+  for (uint i = 0; i < rows; ++i)
+  {
+    // Center.
+    float cx = data[0];
+    float cy = data[1];
+    // Box dimension.
+    float w = data[2];
+    float h = data[3];
+    float confidence = data[4];
+
+    // std::cout << "cx:" << cx << ", cy:" << cy << ", w:" << w << ", h" << h << ", confidence: " << confidence << std::endl;
+
+    // Discard bad detections and continue.
+    if (confidence >= CONFIDENCE_THRESHOLD)
+    {
+      std::cout << "confidence:" << confidence << std::endl;
+      float *classes_scores = data + 5;
+      // Create a 1x85 Mat and store class scores of 80 classes.
+      cv::Mat scores(1, numberOfClasses, CV_32FC1, classes_scores);
+      // Perform minMaxLoc and acquire the index of best class  score.
+      cv::Point class_id;
+      double max_class_score;
+      minMaxLoc(scores, 0, &max_class_score, 0, &class_id);
+      // Continue if the class score is above the threshold.
+      if (max_class_score > SCORE_THRESHOLD)
+      {
+        // Store class ID and confidence in the pre-defined respective vectors.
+        confidences.push_back(confidence);
+        class_ids.push_back(class_id.x);
+        // Bounding box coordinates.
+        int left = int((cx - 0.5 * w) * x_factor);
+        int top = int((cy - 0.5 * h) * y_factor);
+        int width = int(w * x_factor);
+        int height = int(h * y_factor);
+        // Store good detections in the boxes vector.
+        boxes.push_back(cv::Rect(left, top, width, height));
+        std::cout << "Found " << class_id.x << " at " << left << ", " << top << ", " << width << "x" << height << std::endl;
+      }
+    }
+    // Jump to the next row.
+    data += dimensions;
+  }
+  return boxes;
 }

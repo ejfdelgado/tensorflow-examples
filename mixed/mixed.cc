@@ -22,6 +22,9 @@
 // ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -outfolder=./
 // ./mixed ../tensor_python/models/kite.jpg ../tensor_python/models/mobilenet/ssd_mobilenet_v1_1_metadata_1.tflite -labels=../tensor_python/models/mobilenet/labels_mobilenet_v1.txt -it=IMREAD_COLOR -m=CHAR -n=256 -ci=1 -si=2 -bi=0 -th=0.6 -outfolder=./
 // ./mixed ../tensor_python/models/fashion/shooe.png ../tensor_python/models/fashion/fashion.tflite -labels=../tensor_python/models/fashion/labels.txt -it=IMREAD_GRAYSCALE -m=FLOAT -n=10 -si=0
+// ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.25
+// ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.25
+// ./mixed ../tensor_python/models/zebra.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.25
 
 using namespace cv;
 using namespace std;
@@ -32,6 +35,21 @@ using namespace std;
     fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
     exit(1);                                                 \
   }
+
+std::vector<cv::Mat> pre_process(cv::Mat &input_image, cv::dnn::Net &net, uint INPUT_WIDTH, uint INPUT_HEIGHT)
+{
+  // Convert to blob.
+  cv::Mat blob;
+  cv::dnn::blobFromImage(input_image, blob, 1. / 255., Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(), true, false);
+
+  net.setInput(blob);
+
+  // Forward propagate.
+  std::vector<cv::Mat> outputs;
+  net.forward(outputs, net.getUnconnectedOutLayersNames());
+
+  return outputs;
+}
 
 int main(int argc, char *argv[])
 {
@@ -100,10 +118,11 @@ int main(int argc, char *argv[])
   // get input & output layer
   TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
 
+  const uint WHAT_IS_IT = input_tensor->dims->data[0]; // it is 1
   const uint HEIGHT_M = input_tensor->dims->data[1];
   const uint WIDTH_M = input_tensor->dims->data[2];
   const uint CHANNEL_M = input_tensor->dims->data[3];
-  std::cout << "(" << HEIGHT_M << "x" << WIDTH_M << "x" << CHANNEL_M << ")" << std::endl;
+  std::cout << "(" << WHAT_IS_IT << "x" << HEIGHT_M << "x" << WIDTH_M << "x" << CHANNEL_M << ")" << std::endl;
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
@@ -128,6 +147,17 @@ int main(int argc, char *argv[])
   {
     printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, outfolder, image);
   }
+
+/*
+  std::vector<cv::Rect> res = printYoloV5(
+      &interpreter,
+      image,
+      class_names,
+      scoreThreshold, // CONFIDENCE_THRESHOLD=0.45
+      0.5,            // SCORE_THRESHOLD=0.5 para la clase
+      WIDTH_M,
+      HEIGHT_M);
+      */
 
   return 0;
 }
