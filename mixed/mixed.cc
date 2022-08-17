@@ -153,5 +153,9 @@ int main(int argc, char *argv[])
         outfolder);
   }
 
+  cv::Mat src = cv::imread("../tensor_python/models/cedula.png");
+  cv::Mat dest = cutImage(src, 500, 250);
+  cv::imwrite("./nueva.jpg", dest);
+
   return 0;
 }

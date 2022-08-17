@@ -36,3 +36,23 @@ cv::ImreadModes string2ImreadModesEnum(std::string str)
     return cv::ImreadModes::IMREAD_COLOR;
   }
 }
+
+cv::Mat cutImage(cv::Mat &src, uint destWidth, uint destHeight)
+{
+  cv::Point2f srcTri[4];
+  srcTri[0] = cv::Point2f(9.f, 67.f);
+  srcTri[1] = cv::Point2f(429.f, 8.f);
+  srcTri[2] = cv::Point2f(51.f, 326.f);
+  srcTri[3] = cv::Point2f(467.f, 269.f);
+  cv::Point2f dstTri[4];
+  dstTri[0] = cv::Point2f(0.f, 0.f);
+  dstTri[1] = cv::Point2f(destWidth, 0.f);
+  dstTri[2] = cv::Point2f(0, destHeight);
+  dstTri[3] = cv::Point2f(destWidth, destHeight);
+  cv::Mat warp_dst = cv::Mat::zeros(destHeight, destWidth, src.type());
+
+  cv::Mat warp_mat = cv::getPerspectiveTransform(srcTri, dstTri);
+  cv::warpPerspective(src, warp_dst, warp_mat, warp_dst.size());
+
+  return warp_dst;
+}
