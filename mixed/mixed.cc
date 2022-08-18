@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "utilsTensorCv.h"
 #include "image2tensor.h"
+#include <tesseract/baseapi.h>
 
 // https://gilberttanner.com/blog/tflite-model-maker-object-detection/
 // https://gist.github.com/WesleyCh3n/9653610bc384d15e0d9fc86b453751c4
@@ -25,6 +26,11 @@
 // ./mixed ../tensor_python/models/cat.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
 // ./mixed ../tensor_python/models/bee.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
 // ./mixed ../tensor_python/models/zebra.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
+
+/*
+sudo apt install tesseract-ocr libtesseract-dev
+export TESSDATA_PREFIX=../mixed/
+*/
 
 using namespace cv;
 using namespace std;
@@ -52,6 +58,7 @@ int main(int argc, char *argv[])
                                "{threshold  th|0.6         |Threshold for score. Segmentation only.}"
                                "{sth          |0.5         |Threshold for class. Segmentation only.}"
                                "{nmsth        |0.45        |Threshold for nms. Segmentation only.}"
+                               "{dpi          |70          |Dots per inch for text detection.}"
                                "{outfolder    |            |The output folder. Segmentation only.}");
   parser.printMessage();
   String imagePathString = parser.get<String>("@image");
@@ -64,6 +71,7 @@ int main(int argc, char *argv[])
   int scoreIndex = parser.get<int>("scoreIndex");
   int boxIndex = parser.get<int>("boxIndex");
   int yoloIndex = parser.get<int>("yoloIndex");
+  int dpi = parser.get<int>("dpi");
   float scoreThreshold = parser.get<float>("threshold");
   float sth = parser.get<float>("sth");
   float nmsth = parser.get<float>("nmsth");
@@ -153,9 +161,41 @@ int main(int argc, char *argv[])
         outfolder);
   }
 
+  // #include <opencv2/text/ocr.hpp> example
   cv::Mat src = cv::imread("../tensor_python/models/cedula.png");
-  cv::Mat dest = cutImage(src, 500, 250);
+  cv::Mat dest = cutImage(src, 1000, 500);
   cv::imwrite("./nueva.jpg", dest);
+
+  tesseract::TessBaseAPI *ocr = new tesseract::TessBaseAPI();
+  // https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html
+  ocr->Init("../mixed/", "spa", tesseract::OEM_LSTM_ONLY);
+  ocr->SetPageSegMode(tesseract::PSM_AUTO);
+  ocr->SetImage(dest.data, dest.cols, dest.rows, 3, dest.step);
+
+  uint xi = 394;
+  uint yi = 153;
+  uint xf = 484;
+  uint yf = 182;
+
+  ocr->SetRectangle(xi, yi, xf - xi, yf - yi);
+  ocr->SetSourceResolution(dpi);
+
+  ocr->Recognize(0);
+
+  tesseract::ResultIterator *ri = ocr->GetIterator();
+  tesseract::PageIteratorLevel level = tesseract::RIL_WORD;
+
+  if (ri != 0)
+  {
+    do
+    {
+      const string word = ri->GetUTF8Text(level);
+      cout << word << endl;
+    } while (ri->Next(level));
+  }
+
+  delete ocr;
+  delete ri;
 
   return 0;
 }

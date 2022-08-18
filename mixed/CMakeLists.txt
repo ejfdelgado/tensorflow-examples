@@ -3,6 +3,14 @@ project(mixed C CXX)
 
 find_package( OpenCV REQUIRED )
 
+find_package(Tesseract 4)
+if (NOT Tesseract_FOUND)
+    find_package(PkgConfig REQUIRED)
+
+    pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract lept)
+    add_library(Tesseract::libtesseract ALIAS PkgConfig::Tesseract)
+endif ()
+
 SET(ABSL_PROPAGATE_CXX_STD ON)
 SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
 #SET(TENSOR_FLOW_SRC "/home/ec2-user")
@@ -23,4 +31,5 @@ add_executable(mixed
 target_link_libraries(mixed
   tensorflow-lite
   ${OpenCV_LIBS}
+  Tesseract::libtesseract
 )
