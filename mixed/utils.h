@@ -37,13 +37,14 @@ cv::ImreadModes string2ImreadModesEnum(std::string str)
   }
 }
 
-cv::Mat cutImage(cv::Mat &src, uint destWidth, uint destHeight)
+cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, uint destHeight)
 {
   cv::Point2f srcTri[4];
-  srcTri[0] = cv::Point2f(9.f, 67.f);
-  srcTri[1] = cv::Point2f(429.f, 8.f);
-  srcTri[2] = cv::Point2f(51.f, 326.f);
-  srcTri[3] = cv::Point2f(467.f, 269.f);
+  srcTri[0] = source[0];
+  srcTri[1] = source[1];
+  srcTri[2] = source[2];
+  srcTri[3] = source[3];
+  
   cv::Point2f dstTri[4];
   dstTri[0] = cv::Point2f(0.f, 0.f);
   dstTri[1] = cv::Point2f(destWidth, 0.f);
