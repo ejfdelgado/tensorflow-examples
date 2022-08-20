@@ -28,8 +28,14 @@ add_executable(mixed
   mixed.cc
   "${TENSOR_FLOW_SRC}/tensorflow/tensorflow/lite/profiling/root_profiler.cc"
 )
+add_executable(random
+random.cc
+)
 target_link_libraries(mixed
   tensorflow-lite
   ${OpenCV_LIBS}
   Tesseract::libtesseract
+)
+target_link_libraries(random
+  ${OpenCV_LIBS}
 )

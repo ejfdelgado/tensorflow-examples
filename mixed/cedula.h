@@ -1,43 +1,7 @@
-#include <regex>
-#include <sstream>
 #include <string>
 #include <tesseract/baseapi.h>
 #include <opencv2/opencv.hpp>
-
-template <typename T>
-std::vector<T> parseStringVector(std::string texto)
-{
-    const std::string espacios = std::regex_replace(texto, std::regex(","), " ");
-    std::stringstream iss(espacios);
-
-    T number;
-    std::vector<T> myNumbers;
-    while (iss >> number)
-        myNumbers.push_back(number);
-    return myNumbers;
-}
-
-std::string cleanText(std::string texto)
-{
-    const std::string clean1 = std::regex_replace(texto, std::regex("[^A-Za-z0-9ÁÉÍÓÚÜáéíóúü\\s]"), "");
-    const std::string clean2 = std::regex_replace(clean1, std::regex("\\s+$"), "");
-    return clean2;
-}
-
-std::vector<cv::Point2f> parseStringPoint2f(std::string texto)
-{
-    std::vector<int> numeros = parseStringVector<int>(texto);
-    uint halfSize = numeros.size() / 2;
-
-    std::vector<cv::Point2f> resultado;
-    for (uint i = 0; i < halfSize; i++)
-    {
-        float x = numeros[2 * i];
-        float y = numeros[2 * i + 1];
-        resultado.push_back(cv::Point2f(x, y));
-    }
-    return resultado;
-}
+#include "utils.h"
 
 std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, float yyf, float CEDULA_WIDTH, float CEDULA_HEIGHT, std::string folderTrain, int dpi)
 {
@@ -127,12 +91,20 @@ void postProcessCedula(
     }
     photoPath = outfolder + "photo.jpg";
     signaturePath = outfolder + "signature.jpg";
-    std::vector<cv::Point2f> sourcePointsPhoto = parseStringPoint2f("541,70,925,70,541,578,925,578");
+    std::vector<cv::Point2f> sourcePointsPhoto;
+    sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
+    sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 925.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
+    sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 578.f / 650.f));
+    sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 925.f / 950.f, CEDULA_HEIGHT * 578.f / 650.f));
     cv::Mat photoImage = cutImage(dest, sourcePointsPhoto, 350, 440);
     cv::imwrite(photoPath.c_str(), photoImage);
 
-    std::vector<cv::Point2f> sourcePointsSign = parseStringPoint2f("45,428,515,428,45,586,515,586");
-    cv::Mat signatureImage = cutImage(dest, sourcePointsSign, 515 - 45, 586 - 428);
+    std::vector<cv::Point2f> sourcePointsSign;
+    sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 45.f / 950.f, CEDULA_HEIGHT * 428.f / 650.f));
+    sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 515.f / 950.f, CEDULA_HEIGHT * 428.f / 650.f));
+    sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 45.f / 950.f, CEDULA_HEIGHT * 586.f / 650.f));
+    sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 515.f / 950.f, CEDULA_HEIGHT * 586.f / 650.f));
+    cv::Mat signatureImage = cutImage(dest, sourcePointsSign, 470, 158);
     cv::imwrite(signaturePath.c_str(), signatureImage);
 
     std::cout << "{\"id\":\"";

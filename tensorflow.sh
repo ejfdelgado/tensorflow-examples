@@ -8,6 +8,8 @@ sudo amazon-linux-extras install -y java-openjdk11
 sudo yum update
 sudo yum install -y gcc gcc-c++ patch python3 git
 sudo yum install -y g++ wget unzip numpy
+# Esto es nuevo con el ocr
+sudo yum install tesseract-ocr libtesseract-dev
 pip3 install numpy
 
 # Install cmake 3.24.0

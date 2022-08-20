@@ -1,0 +1,15 @@
+e1
+e2
+e3
+e4
+rep
+bia
+txt
+sig
+ph
+num
+ape
+nom
+fir
+tit
+all

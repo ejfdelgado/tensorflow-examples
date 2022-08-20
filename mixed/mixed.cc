@@ -32,8 +32,11 @@
 // ./mixed ../tensor_python/models/zebra.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./ -coords=1340,448,3456,420,1264,1796,3556,1780 -cedula=../tensor_python/models/cedula/003.jpg -dpi=200 -cedtam=950,650
 // ./mixed ../tensor_python/models/zebra.jpg ../tensor_python/models/yolo/best-fp16.tflite -labels=../tensor_python/models/yolo/labels.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./ -coords=1228,388,3424,216,1288,1828,3652,1592 -cedula=../tensor_python/models/cedula/004.jpg -dpi=200 -cedtam=950,650
 
+// ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cedula/003.jpg ../tensor_python/models/cedulas_vaale-fp16.tflite -labels=../tensor_python/models/cedulas_vaale-fp16.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
+// ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cedula/002.jpg ../tensor_python/models/cedulas_vaale-fp16.tflite -labels=../tensor_python/models/cedulas_vaale-fp16.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
+
+
 /*
-sudo apt install tesseract-ocr libtesseract-dev
 export TESSDATA_PREFIX=../mixed/
 TODO:
 Encontrar los puntos de las esquinas y ordenarlos.
@@ -176,12 +179,16 @@ int main(int argc, char *argv[])
         outfolder);
   }
 
-  std::vector<uint> cedtamvec = parseStringVector<uint>(cedtam);
-  uint CEDULA_WIDTH = cedtamvec[0];
-  uint CEDULA_HEIGHT = cedtamvec[1];
+  /*
   cv::Mat cedulaImage = cv::imread(cedula);
-
-  postProcessCedula(cedulaImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
+  if (cedulaImage.data)
+  {
+    std::vector<uint> cedtamvec = parseStringVector<uint>(cedtam);
+    uint CEDULA_WIDTH = cedtamvec[0];
+    uint CEDULA_HEIGHT = cedtamvec[1];
+    postProcessCedula(cedulaImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
+  }
+  */
 
   return 0;
 }

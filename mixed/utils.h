@@ -2,6 +2,46 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <regex>
+#include <sstream>
+
+#ifndef __utils_h__
+#define __utils_h__
+
+template <typename T>
+std::vector<T> parseStringVector(std::string texto)
+{
+    const std::string espacios = std::regex_replace(texto, std::regex(","), " ");
+    std::stringstream iss(espacios);
+
+    T number;
+    std::vector<T> myNumbers;
+    while (iss >> number)
+        myNumbers.push_back(number);
+    return myNumbers;
+}
+
+std::string cleanText(std::string texto)
+{
+    const std::string clean1 = std::regex_replace(texto, std::regex("[^A-Za-z0-9ÁÉÍÓÚÜáéíóúü\\s]"), "");
+    const std::string clean2 = std::regex_replace(clean1, std::regex("\\s+$"), "");
+    return clean2;
+}
+
+std::vector<cv::Point2f> parseStringPoint2f(std::string texto)
+{
+    std::vector<int> numeros = parseStringVector<int>(texto);
+    uint halfSize = numeros.size() / 2;
+
+    std::vector<cv::Point2f> resultado;
+    for (uint i = 0; i < halfSize; i++)
+    {
+        float x = numeros[2 * i];
+        float y = numeros[2 * i + 1];
+        resultado.push_back(cv::Point2f(x, y));
+    }
+    return resultado;
+}
 
 std::vector<std::string> readLabelsFile(const char *path)
 {
@@ -57,3 +97,5 @@ cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, 
 
   return warp_dst;
 }
+
+#endif
