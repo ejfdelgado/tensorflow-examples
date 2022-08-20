@@ -370,6 +370,40 @@ std::unique_ptr<tflite::Interpreter> createTensorInterpreter(
   return interpreter;
 }
 
+std::vector<SegRes> runYoloOnce(
+    std::vector<std::string> class_names,
+    std::string modelPathString,
+    std::string modeString,
+    cv::Mat image,
+    int normalize,
+    float scoreThreshold,
+    float sth,
+    float nmsth,
+    std::string outfolder)
+{
+  std::unique_ptr<tflite::Interpreter> interpreter = createTensorInterpreter(
+      class_names,
+      modelPathString,
+      modeString,
+      image,
+      normalize);
+  TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
+  const uint HEIGHT_M = input_tensor->dims->data[1];
+  const uint WIDTH_M = input_tensor->dims->data[2];
+
+  std::vector<SegRes> myVector = printYoloV5(
+      &interpreter,
+      image,
+      class_names,
+      scoreThreshold, // CONFIDENCE_THRESHOLD=0.45
+      sth,            // SCORE_THRESHOLD -sth para la clase
+      nmsth,          // NMS_THRESHOLD -nmsth
+      WIDTH_M,
+      HEIGHT_M,
+      outfolder);
+  return myVector;
+}
+
 std::string jsonifySegRes(std::vector<SegRes> myVector)
 {
   std::stringstream ss;
