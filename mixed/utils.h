@@ -98,4 +98,14 @@ cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, 
   return warp_dst;
 }
 
+std::string jsonifyImageData(cv::Mat image) {
+  std::stringstream ss;
+  ss << "{";
+  ss << "\"width\":" << image.cols << ", ";
+  ss << "\"height\":" << image.rows << ", ";
+  ss << "\"chanells\":" << image.channels();
+  ss << "}";
+  return ss.str();
+}
+
 #endif

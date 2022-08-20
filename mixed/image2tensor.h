@@ -34,26 +34,26 @@ auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint ty
   cv::Mat dst;
   if (type == 10 || type == 11)
   {
-    std::cout << "convertTo CV_32FC3" << std::endl;
+    // std::cout << "convertTo CV_32FC3" << std::endl;
     src.convertTo(dst, CV_32FC3);
   }
   else if (type == 256)
   {
-    std::cout << "clone" << std::endl;
+    // std::cout << "clone" << std::endl;
     dst = src.clone();
   }
   if (nChanells == 3)
   {
     // Only if RGB swap R with B
-    std::cout << "cvtColor COLOR_BGR2RGB" << std::endl;
+    // std::cout << "cvtColor COLOR_BGR2RGB" << std::endl;
     cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
   }
   if (type == 10 || type == 11)
   {
-    std::cout << "genericNormalize" << std::endl;
+    // std::cout << "genericNormalize" << std::endl;
     genericNormalize<T>(dst, nChanells, type);
   }
-  std::cout << "resize" << std::endl;
+  // std::cout << "resize" << std::endl;
   cv::resize(dst, dst, cv::Size(width, height));
   return dst;
 }

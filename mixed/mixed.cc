@@ -97,11 +97,7 @@ int main(int argc, char *argv[])
     printf("No image data \n");
     return EXIT_FAILURE;
   }
-  std::cout << "{";
-  std::cout << "\"width\":" << image.cols << ", ";
-  std::cout << "\"height\":" << image.rows << ", ";
-  std::cout << "\"chanells\":" << image.channels();
-  std::cout << "}" << std::endl;
+  std::cout << jsonifyImageData(image) << std::endl;
 
   // Load labels path
   std::vector<std::string> class_names;
@@ -123,12 +119,16 @@ int main(int argc, char *argv[])
 
   if (scoreIndex >= 0)
   {
-    printTopClass<float>(&interpreter, scoreIndex, class_names, scoreThreshold);
+    std::vector<SegRes> myVector = printTopClass<float>(&interpreter, scoreIndex, class_names, scoreThreshold);
+    std::string myText = jsonifySegRes(myVector);
+    std::cout << myText << std::endl;
   }
 
   if (classIndex >= 0 && scoreIndex >= 0 && boxIndex >= 0)
   {
-    printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, outfolder, image);
+    std::vector<SegRes> myVector = printSegmented<float>(&interpreter, scoreThreshold, boxIndex, scoreIndex, classIndex, class_names, outfolder, image);
+    std::string myText = jsonifySegRes(myVector);
+    std::cout << myText << std::endl;
   }
 
   if (yoloIndex >= 0)
@@ -146,17 +146,6 @@ int main(int argc, char *argv[])
     std::string myText = jsonifySegRes(myVector);
     std::cout << myText << std::endl;
   }
-
-  /*
-  cv::Mat cedulaImage = cv::imread(cedula);
-  if (cedulaImage.data)
-  {
-    std::vector<uint> cedtamvec = parseStringVector<uint>(cedtam);
-    uint CEDULA_WIDTH = cedtamvec[0];
-    uint CEDULA_HEIGHT = cedtamvec[1];
-    postProcessCedula(cedulaImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
-  }
-  */
 
   return 0;
 }

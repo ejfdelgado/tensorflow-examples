@@ -70,7 +70,7 @@ auto explainTensor(std::string name, TfLiteTensor *tensor) -> void
 }
 
 template <typename T>
-void printTopClass(
+std::vector<SegRes> printTopClass(
     std::unique_ptr<tflite::Interpreter> *interpreter,
     uint classIndex,
     std::vector<std::string> class_names,
@@ -94,25 +94,28 @@ void printTopClass(
   std::vector<DataIndexVal> filteredVector;
   std::copy_if(passThreshold.begin(), passThreshold.end(), std::back_inserter(filteredVector), [scoreThreshold](DataIndexVal i)
                { return i.value >= scoreThreshold; });
-  std::cout << "[";
+
+  std::vector<SegRes> response;
   uint filteredVectorSize = filteredVector.size();
   for (auto it = filteredVector.begin(); it != filteredVector.end(); it++)
   {
     int index = std::distance(filteredVector.begin(), it);
     const uint maxIndex = (*it).index;
     const float maxValue = (*it).value;
-    std::cout << "{\"i\":" << maxIndex << ", ";
+    SegRes nueva;
+    nueva.xi = 0;
+    nueva.xf = 0;
+    nueva.yi = 0;
+    nueva.yf = 0;
+    nueva.i = maxIndex;
     if (maxIndex < classSize)
     {
-      std::cout << "\"c\":\"" << class_names[maxIndex] << "\", ";
+      nueva.c = class_names[maxIndex];
     }
-    std::cout << "\"v\":" << maxValue << "}";
-    if (index < filteredVectorSize - 1)
-    {
-      std::cout << ", ";
-    }
+    nueva.v = maxValue;
+    response.push_back(nueva);
   }
-  std::cout << "]" << std::endl;
+  return response;
 }
 
 template <typename T>
@@ -349,7 +352,7 @@ std::unique_ptr<tflite::Interpreter> createTensorInterpreter(
   const uint HEIGHT_M = input_tensor->dims->data[1];
   const uint WIDTH_M = input_tensor->dims->data[2];
   const uint CHANNEL_M = input_tensor->dims->data[3];
-  std::cout << "(" << WHAT_IS_IT << "x" << HEIGHT_M << "x" << WIDTH_M << "x" << CHANNEL_M << ")" << std::endl;
+  std::cout << "[" << WHAT_IS_IT << ", " << HEIGHT_M << ", " << WIDTH_M << ", " << CHANNEL_M << "]" << std::endl;
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
