@@ -35,7 +35,6 @@
 // ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cedula/003.jpg ../tensor_python/models/cedulas_vaale-fp16.tflite -labels=../tensor_python/models/cedulas_vaale-fp16.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
 // ./mixed /home/ejfdelgado/desarrollo/tensorflow-examples/tensor_python/models/cedula/002.jpg ../tensor_python/models/cedulas_vaale-fp16.tflite -labels=../tensor_python/models/cedulas_vaale-fp16.txt -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -yi=0 -outfolder=./
 
-
 /*
 export TESSDATA_PREFIX=../mixed/
 TODO:
@@ -167,7 +166,7 @@ int main(int argc, char *argv[])
 
   if (yoloIndex >= 0)
   {
-    printYoloV5(
+    std::vector<SegRes> myVector = printYoloV5(
         &interpreter,
         image,
         class_names,
@@ -177,6 +176,8 @@ int main(int argc, char *argv[])
         WIDTH_M,
         HEIGHT_M,
         outfolder);
+    std::string myText = jsonifySegRes(myVector);
+    std::cout << myText << std::endl;
   }
 
   /*

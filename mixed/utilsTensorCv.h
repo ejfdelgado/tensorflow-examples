@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <opencv2/opencv.hpp>
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
@@ -12,6 +13,17 @@ struct DataIndexVal
 {
   int index;
   float value;
+};
+
+struct SegRes
+{
+  uint i;
+  uint xi;
+  uint xf;
+  uint yi;
+  uint yf;
+  std::string c;
+  float v;
 };
 
 bool compareByValue(const DataIndexVal &a, const DataIndexVal &b)
@@ -179,7 +191,7 @@ void printSegmented(
 }
 
 // https://learnopencv.com/object-detection-using-yolov5-and-opencv-dnn-in-c-and-python/
-void printYoloV5(
+std::vector<SegRes> printYoloV5(
     std::unique_ptr<tflite::Interpreter> *interpreter,
     cv::Mat &input_image,
     const std::vector<std::string> &class_names,
@@ -262,9 +274,9 @@ void printYoloV5(
   // Perform Non-Maximum Suppression and draw predictions.
   std::vector<int> indices;
   cv::dnn::NMSBoxes(boxes, confidences, SCORE_THRESHOLD, NMS_THRESHOLD, indices);
-  std::cout << "[";
   uint nFoundObjects = indices.size();
   uint classSize = class_names.size();
+  std::vector<SegRes> response;
   for (uint i = 0; i < nFoundObjects; i++)
   {
     int idx = indices[i];
@@ -275,27 +287,54 @@ void printYoloV5(
     int height = box.height;
     uint classIndex = class_ids[idx];
     // Draw bounding box.
+    SegRes oneResponse;
     cv::rectangle(input_image, cv::Point(left, top), cv::Point(left + width, top + height), BLUE, 3 * THICKNESS);
-    std::cout << "{\"i\":" << classIndex << ", ";
-    std::cout << "\"xi\":\"" << left << "\", ";
-    std::cout << "\"xf\":\"" << left + width << "\", ";
-    std::cout << "\"yi\":\"" << top << "\", ";
-    std::cout << "\"yf\":\"" << top + height << "\", ";
+    oneResponse.i = classIndex;
+    oneResponse.xi = left;
+    oneResponse.xf = left + width;
+    oneResponse.yi = top;
+    oneResponse.yf = top + height;
     if (classIndex < classSize)
     {
-      std::cout << "\"c\":\"" << class_names[classIndex] << "\", ";
+      oneResponse.c = class_names[classIndex];
     }
-    std::cout << "\"v\":" << confidences[idx] << "}";
-    if (i < nFoundObjects - 1)
+    else
     {
-      std::cout << ", ";
+      oneResponse.c = "";
     }
+    oneResponse.v = confidences[idx];
+    response.push_back(oneResponse);
   }
-  std::cout << "]" << std::endl;
 
   if (outfolder.compare("") != 0)
   {
     std::string fullPath = outfolder + "result.jpg";
     cv::imwrite(fullPath.c_str(), input_image);
   }
+  return response;
+}
+
+std::string jsonifySegRes(std::vector<SegRes> myVector)
+{
+  std::stringstream ss;
+  ss << "[";
+  uint nFoundObjects = myVector.size();
+  for (uint i = 0; i < nFoundObjects; i++)
+  {
+    SegRes temp = myVector[i];
+    ss << "{\"i\":" << temp.i << ", ";
+    ss << "\"xi\":\"" << temp.xi << "\", ";
+    ss << "\"xf\":\"" << temp.xf << "\", ";
+    ss << "\"yi\":\"" << temp.yi << "\", ";
+    ss << "\"yf\":\"" << temp.yf << "\", ";
+    ss << "\"c\":\"" << temp.c << "\", ";
+    ss << "\"v\":" << temp.v << "}";
+    if (i < nFoundObjects - 1)
+    {
+      ss << ", ";
+    }
+  }
+  ss << "]";
+
+  return ss.str();
 }
