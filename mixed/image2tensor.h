@@ -1,4 +1,7 @@
 
+#ifndef __image_2_tensor__
+#define __image_2_tensor__
+
 template <typename T>
 void genericNormalize(cv::Mat inputImg, uint nChanells, uint type)
 {
@@ -79,3 +82,5 @@ void image2tensor(cv::Mat image, TfLiteTensor *input_tensor, uint WIDTH_M, uint 
   */
   return;
 }
+
+#endif

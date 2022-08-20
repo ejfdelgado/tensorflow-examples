@@ -9,6 +9,8 @@
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/optional_debug_tools.h"
 
+#include "image2tensor.h"
+
 struct DataIndexVal
 {
   int index;
@@ -25,6 +27,13 @@ struct SegRes
   std::string c;
   float v;
 };
+
+#define TFLITE_MINIMAL_CHECK(x)                              \
+  if (!(x))                                                  \
+  {                                                          \
+    fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
+    exit(1);                                                 \
+  }
 
 bool compareByValue(const DataIndexVal &a, const DataIndexVal &b)
 {
@@ -107,7 +116,7 @@ void printTopClass(
 }
 
 template <typename T>
-void printSegmented(
+std::vector<SegRes> printSegmented(
     std::unique_ptr<tflite::Interpreter> *interpreter,
     float scoreThreshold,
     uint boxIndex,
@@ -146,7 +155,7 @@ void printSegmented(
   std::vector<float> scores;
 
   uint classSize = class_names.size();
-  std::cout << "[";
+  std::vector<SegRes> response;
   for (size_t tmp : result_id)
   {
     // [arriba, izquierda, abajo, derecha]
@@ -160,24 +169,21 @@ void printSegmented(
     const int ymin = arriba * image.rows;
     const int ymax = abajo * image.rows;
 
-    std::cout << "{\"i\":" << class_vec[tmp] << ", ";
-    std::cout << "\"xi\":\"" << xmin << "\", ";
-    std::cout << "\"xf\":\"" << xmax << "\", ";
-    std::cout << "\"yi\":\"" << ymin << "\", ";
-    std::cout << "\"yf\":\"" << ymax << "\", ";
+    SegRes nuevo;
+    nuevo.i = class_vec[tmp];
+    nuevo.xi = xmin;
+    nuevo.xf = xmax;
+    nuevo.yi = ymin;
+    nuevo.yf = ymax;
     if (class_vec[tmp] < classSize)
     {
-      std::cout << "\"c\":\"" << class_names[class_vec[tmp]] << "\", ";
+      nuevo.c = class_names[class_vec[tmp]];
     }
-    std::cout << "\"v\":" << score_vec[tmp] << "}";
-    if (tmp < nFoundObjects - 1)
-    {
-      std::cout << ", ";
-    }
+    nuevo.v = score_vec[tmp];
     rects.emplace_back(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
     scores.emplace_back(score_vec[tmp]);
+    response.push_back(nuevo);
   }
-  std::cout << "]" << std::endl;
 
   if (outfolder.compare("") != 0)
   {
@@ -188,6 +194,7 @@ void printSegmented(
     std::string fullPath = outfolder + "result.jpg";
     cv::imwrite(fullPath.c_str(), image);
   }
+  return response;
 }
 
 // https://learnopencv.com/object-detection-using-yolov5-and-opencv-dnn-in-c-and-python/
@@ -312,6 +319,52 @@ std::vector<SegRes> printYoloV5(
     cv::imwrite(fullPath.c_str(), input_image);
   }
   return response;
+}
+
+std::unique_ptr<tflite::Interpreter> createTensorInterpreter(
+    std::vector<std::string> class_names,
+    std::string modelPathString,
+    std::string modeString,
+    cv::Mat image,
+    int normalize)
+{
+
+  // Load model
+  std::unique_ptr<tflite::FlatBufferModel> model =
+      tflite::FlatBufferModel::BuildFromFile(modelPathString.c_str());
+  TFLITE_MINIMAL_CHECK(model != nullptr);
+  tflite::ops::builtin::BuiltinOpResolver resolver;
+  tflite::InterpreterBuilder builder(*model, resolver);
+  std::unique_ptr<tflite::Interpreter> interpreter;
+  builder(&interpreter);
+  TFLITE_MINIMAL_CHECK(interpreter != nullptr);
+  // Allocate tensor buffers.
+  TFLITE_MINIMAL_CHECK(interpreter->AllocateTensors() == kTfLiteOk);
+  // printf("=== Pre-invoke Interpreter State ===\n");
+  //  tflite::PrintInterpreterState(interpreter.get());
+  //  get input & output layer
+  TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
+
+  const uint WHAT_IS_IT = input_tensor->dims->data[0]; // it is 1
+  const uint HEIGHT_M = input_tensor->dims->data[1];
+  const uint WIDTH_M = input_tensor->dims->data[2];
+  const uint CHANNEL_M = input_tensor->dims->data[3];
+  std::cout << "(" << WHAT_IS_IT << "x" << HEIGHT_M << "x" << WIDTH_M << "x" << CHANNEL_M << ")" << std::endl;
+  cv::Mat inputImg;
+  if (modeString.compare("CHAR") == 0)
+  {
+    image2tensor<char>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
+  }
+  else if (modeString.compare("FLOAT") == 0)
+  {
+    image2tensor<float>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
+  }
+
+  // std::cout << "Run inference..." << std::endl;
+  TFLITE_MINIMAL_CHECK(interpreter->Invoke() == kTfLiteOk);
+  // printf("\n\n=== Post-invoke Interpreter State ===\n");
+  //  tflite::PrintInterpreterState(interpreter.get());
+  return interpreter;
 }
 
 std::string jsonifySegRes(std::vector<SegRes> myVector)

@@ -44,13 +44,6 @@ Encontrar los puntos de las esquinas y ordenarlos.
 using namespace cv;
 using namespace std;
 
-#define TFLITE_MINIMAL_CHECK(x)                              \
-  if (!(x))                                                  \
-  {                                                          \
-    fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
-    exit(1);                                                 \
-  }
-
 int main(int argc, char *argv[])
 {
   cv::CommandLineParser parser(argc, argv,
@@ -111,48 +104,22 @@ int main(int argc, char *argv[])
   std::cout << "}" << std::endl;
 
   // Load labels path
-  std::vector<string> class_names;
+  std::vector<std::string> class_names;
   if (labelsPathString.compare("") != 0)
   {
-    std::cout << "Reading labels..." << std::endl;
+    // std::cout << "Reading labels..." << std::endl;
     class_names = readLabelsFile(labelsPathString.c_str());
   }
 
-  // Load model
-  std::unique_ptr<tflite::FlatBufferModel> model =
-      tflite::FlatBufferModel::BuildFromFile(modelPathString.c_str());
-  TFLITE_MINIMAL_CHECK(model != nullptr);
-  tflite::ops::builtin::BuiltinOpResolver resolver;
-  tflite::InterpreterBuilder builder(*model, resolver);
-  std::unique_ptr<tflite::Interpreter> interpreter;
-  builder(&interpreter);
-  TFLITE_MINIMAL_CHECK(interpreter != nullptr);
-  // Allocate tensor buffers.
-  TFLITE_MINIMAL_CHECK(interpreter->AllocateTensors() == kTfLiteOk);
-  printf("=== Pre-invoke Interpreter State ===\n");
-  // tflite::PrintInterpreterState(interpreter.get());
-  // get input & output layer
+  std::unique_ptr<tflite::Interpreter> interpreter = createTensorInterpreter(
+      class_names,
+      modelPathString,
+      modeString,
+      image,
+      normalize);
   TfLiteTensor *input_tensor = interpreter->tensor(interpreter->inputs()[0]);
-
-  const uint WHAT_IS_IT = input_tensor->dims->data[0]; // it is 1
   const uint HEIGHT_M = input_tensor->dims->data[1];
   const uint WIDTH_M = input_tensor->dims->data[2];
-  const uint CHANNEL_M = input_tensor->dims->data[3];
-  std::cout << "(" << WHAT_IS_IT << "x" << HEIGHT_M << "x" << WIDTH_M << "x" << CHANNEL_M << ")" << std::endl;
-  cv::Mat inputImg;
-  if (modeString.compare("CHAR") == 0)
-  {
-    image2tensor<char>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
-  }
-  else if (modeString.compare("FLOAT") == 0)
-  {
-    image2tensor<float>(image, input_tensor, WIDTH_M, HEIGHT_M, CHANNEL_M, normalize);
-  }
-
-  std::cout << "Run inference..." << std::endl;
-  TFLITE_MINIMAL_CHECK(interpreter->Invoke() == kTfLiteOk);
-  printf("\n\n=== Post-invoke Interpreter State ===\n");
-  // tflite::PrintInterpreterState(interpreter.get());
 
   if (scoreIndex >= 0)
   {

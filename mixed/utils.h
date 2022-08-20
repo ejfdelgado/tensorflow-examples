@@ -11,36 +11,36 @@
 template <typename T>
 std::vector<T> parseStringVector(std::string texto)
 {
-    const std::string espacios = std::regex_replace(texto, std::regex(","), " ");
-    std::stringstream iss(espacios);
+  const std::string espacios = std::regex_replace(texto, std::regex(","), " ");
+  std::stringstream iss(espacios);
 
-    T number;
-    std::vector<T> myNumbers;
-    while (iss >> number)
-        myNumbers.push_back(number);
-    return myNumbers;
+  T number;
+  std::vector<T> myNumbers;
+  while (iss >> number)
+    myNumbers.push_back(number);
+  return myNumbers;
 }
 
 std::string cleanText(std::string texto)
 {
-    const std::string clean1 = std::regex_replace(texto, std::regex("[^A-Za-z0-9ÁÉÍÓÚÜáéíóúü\\s]"), "");
-    const std::string clean2 = std::regex_replace(clean1, std::regex("\\s+$"), "");
-    return clean2;
+  const std::string clean1 = std::regex_replace(texto, std::regex("[^A-Za-z0-9ÁÉÍÓÚÜáéíóúü\\s]"), "");
+  const std::string clean2 = std::regex_replace(clean1, std::regex("\\s+$"), "");
+  return clean2;
 }
 
 std::vector<cv::Point2f> parseStringPoint2f(std::string texto)
 {
-    std::vector<int> numeros = parseStringVector<int>(texto);
-    uint halfSize = numeros.size() / 2;
+  std::vector<int> numeros = parseStringVector<int>(texto);
+  uint halfSize = numeros.size() / 2;
 
-    std::vector<cv::Point2f> resultado;
-    for (uint i = 0; i < halfSize; i++)
-    {
-        float x = numeros[2 * i];
-        float y = numeros[2 * i + 1];
-        resultado.push_back(cv::Point2f(x, y));
-    }
-    return resultado;
+  std::vector<cv::Point2f> resultado;
+  for (uint i = 0; i < halfSize; i++)
+  {
+    float x = numeros[2 * i];
+    float y = numeros[2 * i + 1];
+    resultado.push_back(cv::Point2f(x, y));
+  }
+  return resultado;
 }
 
 std::vector<std::string> readLabelsFile(const char *path)
@@ -84,7 +84,7 @@ cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, 
   srcTri[1] = source[1];
   srcTri[2] = source[2];
   srcTri[3] = source[3];
-  
+
   cv::Point2f dstTri[4];
   dstTri[0] = cv::Point2f(0.f, 0.f);
   dstTri[1] = cv::Point2f(destWidth, 0.f);
