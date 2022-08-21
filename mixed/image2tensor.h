@@ -54,7 +54,7 @@ auto matPreprocess(cv::Mat src, uint width, uint height, uint nChanells, uint ty
     genericNormalize<T>(dst, nChanells, type);
   }
   // std::cout << "resize" << std::endl;
-  cv::resize(dst, dst, cv::Size(width, height));
+  cv::resize(dst, dst, cv::Size(width, height), 0, 0, cv::INTER_AREA);
   return dst;
 }
 

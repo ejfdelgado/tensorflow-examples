@@ -298,7 +298,9 @@ std::vector<SegRes> printYoloV5(
     uint classIndex = class_ids[idx];
     // Draw bounding box.
     SegRes oneResponse;
-    cv::rectangle(input_image, cv::Point(left, top), cv::Point(left + width, top + height), BLUE, 3 * THICKNESS);
+    if (outfolder.compare("") != 0) {
+      cv::rectangle(input_image, cv::Point(left, top), cv::Point(left + width, top + height), BLUE, 3 * THICKNESS);
+    }
     oneResponse.i = classIndex;
     oneResponse.xi = left;
     oneResponse.xf = left + width;
@@ -352,7 +354,7 @@ std::unique_ptr<tflite::Interpreter> createTensorInterpreter(
   const uint HEIGHT_M = input_tensor->dims->data[1];
   const uint WIDTH_M = input_tensor->dims->data[2];
   const uint CHANNEL_M = input_tensor->dims->data[3];
-  std::cout << "[" << WHAT_IS_IT << ", " << HEIGHT_M << ", " << WIDTH_M << ", " << CHANNEL_M << "]" << std::endl;
+  // std::cout << "[" << WHAT_IS_IT << ", " << HEIGHT_M << ", " << WIDTH_M << ", " << CHANNEL_M << "]" << std::endl;
   cv::Mat inputImg;
   if (modeString.compare("CHAR") == 0)
   {
