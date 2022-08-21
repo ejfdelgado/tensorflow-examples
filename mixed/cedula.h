@@ -96,7 +96,7 @@ void postProcessCedula(
     photoPath = outfolder + "photo.jpg";
     signaturePath = outfolder + "signature.jpg";
     normalizedImage = outfolder + "normalized.jpg";
-    jsonPath = outfolder + "response.json";
+    jsonPath = outfolder + "actual.json";
     std::vector<cv::Point2f> sourcePointsPhoto;
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 925.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
@@ -117,17 +117,17 @@ void postProcessCedula(
     std::ofstream myfile;
     myfile.open(jsonPath.c_str(), std::ios::trunc);
 
-    myfile << "{\"id\":\"";
+    myfile << "{\n\t\"id\":\"";
     myfile << numCedula;
-    myfile << "\", \"names\":\"";
+    myfile << "\",\n\t\"names\":\"";
     myfile << nombres;
-    myfile << "\", \"lastnames\":\"";
+    myfile << "\",\n\t\"lastnames\":\"";
     myfile << apellidos;
-    myfile << "\", \"photoPath\":\"";
+    myfile << "\",\n\t\"photoPath\":\"";
     myfile << photoPath;
-    myfile << "\", \"signaturePath\":\"";
+    myfile << "\",\n\t\"signaturePath\":\"";
     myfile << signaturePath;
-    myfile << "\"}" << std::endl;
+    myfile << "\"\n}" << std::endl;
 
     myfile.close();
 }

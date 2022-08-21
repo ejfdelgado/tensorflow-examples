@@ -345,7 +345,7 @@ void computeHigherRotation(
       scoreThreshold,
       sth,
       nmsth,
-      outfolder);
+      "");
   std::string myText = jsonifySegRes(myVector);
   std::cout << myText << std::endl;
 
