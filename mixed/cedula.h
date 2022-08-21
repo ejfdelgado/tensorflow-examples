@@ -1,4 +1,6 @@
 #include <string>
+#include <iostream>
+#include <fstream>
 #include <tesseract/baseapi.h>
 #include <opencv2/opencv.hpp>
 #include "utils.h"
@@ -43,14 +45,14 @@ std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, flo
 
 void postProcessCedula(
     cv::Mat src,
-    std::string coords,
+    std::vector<cv::Point2f> sourcePoints,
     uint CEDULA_WIDTH,
     uint CEDULA_HEIGHT,
     std::string TRAINED_FOLDER,
     uint dpi,
     std::string outfolder)
 {
-    std::vector<cv::Point2f> sourcePoints = parseStringPoint2f(coords);
+    // std::vector<cv::Point2f> sourcePoints = parseStringPoint2f(coords);
     cv::Mat dest = cutImage(src, sourcePoints, CEDULA_WIDTH, CEDULA_HEIGHT);
 
     // equalizar
@@ -85,12 +87,16 @@ void postProcessCedula(
 
     std::string photoPath;
     std::string signaturePath;
+    std::string normalizedImage;
+    std::string jsonPath;
     if (outfolder.compare("") == 0)
     {
         outfolder = "./";
     }
     photoPath = outfolder + "photo.jpg";
     signaturePath = outfolder + "signature.jpg";
+    normalizedImage = outfolder + "normalized.jpg";
+    jsonPath = outfolder + "response.json";
     std::vector<cv::Point2f> sourcePointsPhoto;
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 925.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
@@ -106,16 +112,22 @@ void postProcessCedula(
     sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 515.f / 950.f, CEDULA_HEIGHT * 586.f / 650.f));
     cv::Mat signatureImage = cutImage(dest, sourcePointsSign, 470, 158);
     cv::imwrite(signaturePath.c_str(), signatureImage);
+    cv::imwrite(normalizedImage.c_str(), dest);
 
-    std::cout << "{\"id\":\"";
-    std::cout << numCedula;
-    std::cout << "\", \"names\":\"";
-    std::cout << nombres;
-    std::cout << "\", \"lastnames\":\"";
-    std::cout << apellidos;
-    std::cout << "\", \"photoPath\":\"";
-    std::cout << photoPath;
-    std::cout << "\", \"signaturePath\":\"";
-    std::cout << signaturePath;
-    std::cout << "\"}" << std::endl;
+    std::ofstream myfile;
+    myfile.open(jsonPath.c_str(), std::ios::trunc);
+
+    myfile << "{\"id\":\"";
+    myfile << numCedula;
+    myfile << "\", \"names\":\"";
+    myfile << nombres;
+    myfile << "\", \"lastnames\":\"";
+    myfile << apellidos;
+    myfile << "\", \"photoPath\":\"";
+    myfile << photoPath;
+    myfile << "\", \"signaturePath\":\"";
+    myfile << signaturePath;
+    myfile << "\"}" << std::endl;
+
+    myfile.close();
 }

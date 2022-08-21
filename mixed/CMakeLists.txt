@@ -32,6 +32,10 @@ add_executable(cedula
   cedula.cc
   "${TENSOR_FLOW_SRC}/tensorflow/tensorflow/lite/profiling/root_profiler.cc"
 )
+add_executable(solvePnP
+  solvePnP.cc
+)
+
 target_link_libraries(mixed
   tensorflow-lite
   ${OpenCV_LIBS}
@@ -41,4 +45,7 @@ target_link_libraries(cedula
   tensorflow-lite
   ${OpenCV_LIBS}
   Tesseract::libtesseract
+)
+target_link_libraries(solvePnP
+  ${OpenCV_LIBS}
 )

@@ -11,6 +11,7 @@
 #include "utilsTensorCv.h"
 #include "image2tensor.h"
 #include "cedula.h"
+#include "solvePnP.h"
 
 // ./cedula ./cedulas/img0000.jpg ../tensor_python/models -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -outfolder=./img0000/
 
@@ -100,6 +101,79 @@ float computeValueForRotation(
   return v0;
 }
 
+Data3D getModel3D(std::string clase)
+{
+  if (clase.compare("tit") == 0)
+  {
+    return {320, 108, 0};
+  }
+  else if (clase.compare("num") == 0)
+  {
+    return {95, 212, 0};
+  }
+  else if (clase.compare("ape") == 0)
+  {
+    return {107, 304, 0};
+  }
+  else if (clase.compare("nom") == 0)
+  {
+    return {102, 401, 0};
+  }
+  else if (clase.compare("e1") == 0)
+  {
+    return {75, 78, 0};
+  }
+  else if (clase.compare("bia") == 0)
+  {
+    return {509, 93, 0};
+  }
+  else if (clase.compare("ph") == 0)
+  {
+    return {767, 306, 0};
+  }
+  else if (clase.compare("fir") == 0)
+  {
+    return {291, 532, 0};
+  }
+  else if (clase.compare("sig") == 0)
+  {
+    return {165, 575, 0};
+  }
+  else if (clase.compare("e4") == 0)
+  {
+    return {1004, 626, 0};
+  }
+  return {-1, -1, -1};
+}
+
+std::vector<cv::Point2f> estimateCorners(std::vector<SegRes> myVector)
+{
+  uint nFoundObjects = myVector.size();
+  std::vector<Data2D> ref2D;
+  std::vector<Data3D> ref3D;
+  std::vector<Data3D> question = {{0, 0, 0}, {1004, 0, 0}, {0, 626, 0}, {1004, 626, 0}};
+  for (uint i = 0; i < nFoundObjects; i++)
+  {
+    SegRes temp = myVector[i];
+    Data3D oneRef3D = getModel3D(temp.c);
+    if (oneRef3D.x >= 0)
+    {
+      ref2D.push_back({temp.cx, temp.cy});
+      ref3D.push_back(oneRef3D);
+    }
+  }
+  std::vector<cv::Point2f> response;
+  if (ref2D.size() >= 3)
+  {
+    response = guessPoints(question, ref2D, ref3D);
+    for (unsigned int i = 0; i < response.size(); ++i)
+    {
+      std::cout << "Projected to " << response[i] << std::endl;
+    }
+  }
+  return response;
+}
+
 void computeHigherRotation(
     std::vector<std::string> class_names,
     std::vector<std::string> class_names2,
@@ -110,7 +184,8 @@ void computeHigherRotation(
     float scoreThreshold,
     float sth,
     float nmsth,
-    std::string outfolder)
+    std::string outfolder,
+    std::string TRAINED_FOLDER)
 {
   std::string model = modelPathString + "/cedulas_vaale-fp16.tflite";
   std::string model2 = modelPathString + "/cedulas_vaale2-fp16.tflite";
@@ -222,7 +297,7 @@ void computeHigherRotation(
 
   maxValue = -1;
   maxDegree = -1;
-  std::vector<std::string> classes4Eval{"tit", "txt", "ph", "nom", "ape", "num", "sig", "bia", "fir", "e1"};
+  std::vector<std::string> classes4Eval{"tit", "ph", "nom", "ape", "num", "sig", "bia", "fir", "e1", "e4"};
   for (uint i = 0; i < degreesDetail.size(); i++)
   {
     double degree = degreesDetail[i];
@@ -273,6 +348,16 @@ void computeHigherRotation(
       outfolder);
   std::string myText = jsonifySegRes(myVector);
   std::cout << myText << std::endl;
+
+  // Debo calcular el pnp
+  std::vector<cv::Point2f> coords = estimateCorners(myVector);
+  if (coords.size() >= 4)
+  {
+    int dpi = 200;
+    uint CEDULA_WIDTH = 850;
+    uint CEDULA_HEIGHT = 550;
+    postProcessCedula(finalImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
+  }
 }
 
 int main(int argc, char *argv[])
@@ -334,20 +419,11 @@ int main(int argc, char *argv[])
       scoreThreshold,
       sth,
       nmsth,
-      outfolder);
+      outfolder,
+      TRAINED_FOLDER);
+
   // std::string myText = jsonifySegRes(myVector);
   // std::cout << myText << std::endl;
-
-  /*
-  cv::Mat cedulaImage = cv::imread(cedula);
-  if (cedulaImage.data)
-  {
-    std::vector<uint> cedtamvec = parseStringVector<uint>(cedtam);
-    uint CEDULA_WIDTH = cedtamvec[0];
-    uint CEDULA_HEIGHT = cedtamvec[1];
-    postProcessCedula(cedulaImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
-  }
-  */
 
   return 0;
 }

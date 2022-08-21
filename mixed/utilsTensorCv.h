@@ -24,6 +24,8 @@ struct SegRes
   uint xf;
   uint yi;
   uint yf;
+  float cx;
+  float cy;
   std::string c;
   float v;
 };
@@ -107,6 +109,8 @@ std::vector<SegRes> printTopClass(
     nueva.xf = 0;
     nueva.yi = 0;
     nueva.yf = 0;
+    nueva.cx = 0;
+    nueva.cy = 0;
     nueva.i = maxIndex;
     if (maxIndex < classSize)
     {
@@ -178,6 +182,8 @@ std::vector<SegRes> printSegmented(
     nuevo.xf = xmax;
     nuevo.yi = ymin;
     nuevo.yf = ymax;
+    nuevo.cx = (nuevo.xf + nuevo.xi) / 2;
+    nuevo.cy = (nuevo.yf + nuevo.yi) / 2;
     if (class_vec[tmp] < classSize)
     {
       nuevo.c = class_names[class_vec[tmp]];
@@ -298,7 +304,8 @@ std::vector<SegRes> printYoloV5(
     uint classIndex = class_ids[idx];
     // Draw bounding box.
     SegRes oneResponse;
-    if (outfolder.compare("") != 0) {
+    if (outfolder.compare("") != 0)
+    {
       cv::rectangle(input_image, cv::Point(left, top), cv::Point(left + width, top + height), BLUE, 3 * THICKNESS);
     }
     oneResponse.i = classIndex;
@@ -306,6 +313,8 @@ std::vector<SegRes> printYoloV5(
     oneResponse.xf = left + width;
     oneResponse.yi = top;
     oneResponse.yf = top + height;
+    oneResponse.cx = (oneResponse.xf + oneResponse.xi) / 2;
+    oneResponse.cy = (oneResponse.yf + oneResponse.yi) / 2;
     if (classIndex < classSize)
     {
       oneResponse.c = class_names[classIndex];
@@ -419,6 +428,8 @@ std::string jsonifySegRes(std::vector<SegRes> myVector)
     ss << "\"xf\":\"" << temp.xf << "\", ";
     ss << "\"yi\":\"" << temp.yi << "\", ";
     ss << "\"yf\":\"" << temp.yf << "\", ";
+    ss << "\"cx\":\"" << temp.cx << "\", ";
+    ss << "\"cy\":\"" << temp.cy << "\", ";
     ss << "\"c\":\"" << temp.c << "\", ";
     ss << "\"v\":" << temp.v << "}";
     if (i < nFoundObjects - 1)
