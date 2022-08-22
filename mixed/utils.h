@@ -23,9 +23,26 @@ std::vector<T> parseStringVector(std::string texto)
 
 std::string cleanText(std::string texto)
 {
-  const std::string clean1 = std::regex_replace(texto, std::regex("[^A-Za-z0-9ÁÉÍÓÚÜáéíóúü\\s]"), "");
-  const std::string clean2 = std::regex_replace(clean1, std::regex("\\s+$"), "");
-  return clean2;
+  // Solo dejamos los caracteres que están en la lista a continuación
+  texto = std::regex_replace(texto, std::regex("[^A-Za-zÑÁÉÍÓÚÜñáéíóúü\\s]"), "");
+  // Quitamos todos los espacios al final
+  texto = std::regex_replace(texto, std::regex("\\s+$"), "");
+  // Quitamos los espacios al inicio
+  texto = std::regex_replace(texto, std::regex("^\\s+"), "");
+  return texto;
+}
+
+std::string cleanNumber(std::string texto)
+{
+  // Salvamos algunos números que se asumen como letras
+  texto = std::regex_replace(texto, std::regex("[oO]"), "0");
+  // Elimina todo lo que no sea número
+  texto = std::regex_replace(texto, std::regex("[^0-9]"), "");
+  // Quitamos todos los espacios al final
+  texto = std::regex_replace(texto, std::regex("[\\s]"), "");
+  // Quitamos los espacios al inicio
+  texto = std::regex_replace(texto, std::regex("^\\s+"), "");
+  return texto;
 }
 
 std::vector<cv::Point2f> parseStringPoint2f(std::string texto)
@@ -98,7 +115,8 @@ cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, 
   return warp_dst;
 }
 
-std::string jsonifyImageData(cv::Mat image) {
+std::string jsonifyImageData(cv::Mat image)
+{
   std::stringstream ss;
   ss << "{";
   ss << "\"width\":" << image.cols << ", ";

@@ -13,7 +13,10 @@
 #include "cedula.h"
 #include "solvePnP.h"
 
-// ./cedula ./cedulas/img0000.jpg ../tensor_python/models -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -outfolder=./img0000/
+// cmake ../mixed
+// cmake --build . -j 4
+
+// ./cedula ./cedulas/img0002.jpg ../tensor_python/models -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -outfolder=./process/img0002/
 
 using namespace cv;
 using namespace std;
@@ -168,6 +171,14 @@ std::vector<cv::Point2f> estimateCorners(std::vector<SegRes> myVector)
     response = guessPoints(question, ref2D, ref3D);
     for (unsigned int i = 0; i < response.size(); ++i)
     {
+      if (response[i].x < 0)
+      {
+        response[i].x = 0;
+      }
+      if (response[i].y < 0)
+      {
+        response[i].y = 0;
+      }
       std::cout << "Projected to " << response[i] << std::endl;
     }
   }
@@ -184,6 +195,7 @@ void computeHigherRotation(
     float scoreThreshold,
     float sth,
     float nmsth,
+    int dpi,
     std::string outfolder,
     std::string TRAINED_FOLDER)
 {
@@ -353,7 +365,6 @@ void computeHigherRotation(
   std::vector<cv::Point2f> coords = estimateCorners(myVector);
   if (coords.size() >= 4)
   {
-    int dpi = 200;
     uint CEDULA_WIDTH = 850;
     uint CEDULA_HEIGHT = 550;
     postProcessCedula(finalImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
@@ -371,7 +382,7 @@ int main(int argc, char *argv[])
                                "{threshold  th|0.6         |Threshold for score. Segmentation only.}"
                                "{sth          |0.5         |Threshold for class. Segmentation only.}"
                                "{nmsth        |0.45        |Threshold for nms. Segmentation only.}"
-                               "{dpi          |70          |Dots per inch for text detection.}"
+                               "{dpi          |200         |Dots per inch for text detection.}"
                                "{cedula       |            |Cedula.}"
                                "{cedtam       |850,550     |Cedula Tamanio W,H.}"
                                "{coords       |            |Coords.}"
@@ -419,6 +430,7 @@ int main(int argc, char *argv[])
       scoreThreshold,
       sth,
       nmsth,
+      dpi,
       outfolder,
       TRAINED_FOLDER);
 
