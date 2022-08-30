@@ -3,21 +3,30 @@ project(mixed C CXX)
 
 find_package( OpenCV REQUIRED )
 
-set(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
+# cmake ../mixed
+# cmake --build . -j 4
+
+# For Local Dev
+# export OpenCV_DIR=/home/ejfdelgado/desarrollo/vaale/build
+# SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
+
+# For AMI
+# export Tesseract_DIR=/home/ec2-user/tesseract/tesseract-4.1.2/build
+# export OpenCV_DIR=/home/ec2-user/opencv-build
+#SET(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
+SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
 find_package(Tesseract 4)
 if (NOT Tesseract_FOUND)
-    find_package(PkgConfig REQUIRED)
-
-    pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract lept)
-    add_library(Tesseract::libtesseract ALIAS PkgConfig::Tesseract)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract lept)
+  add_library(Tesseract::libtesseract ALIAS PkgConfig::Tesseract)
 endif ()
 
 SET(ABSL_PROPAGATE_CXX_STD ON)
-#SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
-SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
+include_directories( ${Tesseract_INCLUDE_DIRS} )
 
 add_subdirectory(
   "${TENSOR_FLOW_SRC}/tensorflow/tensorflow/lite"
@@ -41,12 +50,15 @@ add_executable(solvePnP
 target_link_libraries(mixed
   tensorflow-lite
   ${OpenCV_LIBS}
-  Tesseract::libtesseract
+  # Tesseract::libtesseract
+  ${Tesseract_LIBRARIES}
 )
+# https://forums.raspberrypi.com/viewtopic.php?t=292506
 target_link_libraries(cedula
   tensorflow-lite
   ${OpenCV_LIBS}
-  Tesseract::libtesseract
+  # Tesseract::libtesseract
+  ${Tesseract_LIBRARIES}
 )
 target_link_libraries(solvePnP
   ${OpenCV_LIBS}
