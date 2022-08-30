@@ -5,6 +5,10 @@
 #include <opencv2/opencv.hpp>
 #include "utils.h"
 
+// TODO
+// Si en las rotaciones ninguno tiene un minimos score de 70 se termina
+// Recortar también los nombres y apellidos
+
 std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, float yyf, float CEDULA_WIDTH, float CEDULA_HEIGHT, std::string folderTrain, int dpi, float UMBRAL)
 {
     // std::cout << xxi << ", " << yyi << ", " << xxf << ", " << yyf << std::endl;

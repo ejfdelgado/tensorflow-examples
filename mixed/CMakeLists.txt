@@ -3,21 +3,40 @@ project(mixed C CXX)
 
 # cmake ../mixed
 # cmake --build . -j 4
+# vi ../mixed/CMakeLists.txt
+# node /home/ec2-user/tensorflow-examples/utils/shared-libs.js cedula cedula.zip
+# Run first AWS credentials /home/ejfdelgado/desarrollo/amazon/rootkey.csv
+# aws s3api put-object --bucket ejfdelgado-simple --key libs/cedula.zip --body cedula.zip
 
-# For Local Dev
-# export OpenCV_DIR=/home/ejfdelgado/desarrollo/vaale/build
-# SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
-
-# For AMI
-# export Leptonica_DIR=/home/ec2-user/tesseract/leptonica-1.79.0
-# export Tesseract_DIR=/home/ec2-user/tesseract/tesseract-4.1.2/build
-# export OpenCV_DIR=/home/ec2-user/opencv-build
-# SET(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
-SET(TENSOR_FLOW_SRC "/home/ec2-user")
+# /home/ec2-user/tensorflow-examples/mixed-build
+# ldconfig -p | grep lept
+# ldconfig -p | grep libtesseract
 
 find_package( OpenCV REQUIRED )
 find_package(Tesseract 4 REQUIRED)
-find_package(Leptonica REQUIRED)
+
+SET(modo "LOCAL")
+
+IF(modo STREQUAL "LOCAL")
+  message("Running Local...")
+  # export OpenCV_DIR=/home/ejfdelgado/desarrollo/vaale/build
+  # export Leptonica_DIR=/home/ejfdelgado/desarrollo/tesseract/leptonica-1.79.0/build
+  # export Tesseract_DIR=/home/ejfdelgado/desarrollo/tesseract/tesseract-4.1.2/build
+  SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
+  find_package(Leptonica REQUIRED)
+ELSE()
+  message("Running AMI...")
+  # export Leptonica_DIR=/home/ec2-user/tesseract/leptonica-1.79.0/build
+  # export Tesseract_DIR=/home/ec2-user/tesseract/tesseract-4.1.2/build
+  # export OpenCV_DIR=/home/ec2-user/opencv-build
+  # SET(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
+  find_package(PkgConfig REQUIRED)
+  SET(TENSOR_FLOW_SRC "/home/ec2-user")
+  pkg_check_modules(Leptonica REQUIRED lept REQUIRED)
+  link_directories( ${Leptonica_LIBRARY_DIRS} )
+ENDIF()
+
+
 #if (NOT Tesseract_FOUND)
 #  find_package(PkgConfig REQUIRED)
 #  pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract lept)

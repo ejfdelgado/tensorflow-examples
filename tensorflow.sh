@@ -17,10 +17,13 @@ sudo yum install -y g++ wget unzip numpy
 wget http://www.leptonica.org/source/leptonica-1.79.0.tar.gz .
 tar -zxvf leptonica-1.79.0.tar.gz
 cd leptonica-1.79.0
-./configure --prefix=/usr/local/leptonica-1.79.0
+#./configure --prefix=/usr/local/leptonica-1.79.0
+mkdir build && cd build
+cmake ..
 make
-make install
+sudo make install
 export PKG_CONFIG_PATH=/usr/local/leptonica-1.79.0/lib/pkgconfig
+cd .. && cd ..
 
 # Build Leptonica -> 1.74.2
 #mkdir tesseract
@@ -43,6 +46,7 @@ cmake ..
 make
 sudo make install
 sudo ldconfig
+cd .. && cd ..
 # /usr/local/lib/pkgconfig/tesseract.pc
 # export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 # cd /usr/local/lib/pkgconfig
