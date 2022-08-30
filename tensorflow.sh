@@ -9,7 +9,45 @@ sudo yum update
 sudo yum install -y gcc gcc-c++ patch python3 git
 sudo yum install -y g++ wget unzip numpy
 # Esto es nuevo con el ocr
-sudo yum install tesseract-ocr libtesseract-dev
+# tesseract-ocr 4.1.1-2.1build1
+# libtesseract-dev 4.1.1-2.1build1
+# sudo yum install tesseract-ocr libtesseract-dev
+
+# Build Leptonica -> 1.79.0
+wget http://www.leptonica.org/source/leptonica-1.79.0.tar.gz .
+tar -zxvf leptonica-1.79.0.tar.gz
+cd leptonica-1.79.0
+./configure --prefix=/usr/local/leptonica-1.79.0
+make
+make install
+export PKG_CONFIG_PATH=/usr/local/leptonica-1.79.0/lib/pkgconfig
+
+# Build Leptonica -> 1.74.2
+#mkdir tesseract
+#cd tesseract
+#wget https://github.com/DanBloomberg/leptonica/archive/refs/tags/v1.74.3.zip
+#unzip v1.74.3.zip
+#cd leptonica-1.74.3
+#mkdir build && cd build
+#cmake ..
+#make
+#sudo make install
+#cd .. && cd ..
+
+# Build tesseract 4.1.2
+wget https://github.com/tesseract-ocr/tesseract/archive/refs/tags/4.1.2.zip
+unzip 4.1.2.zip
+cd tesseract-4.1.2
+mkdir build && cd build
+cmake ..
+make
+sudo make install
+sudo ldconfig
+# /usr/local/lib/pkgconfig/tesseract.pc
+# export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+# cd /usr/local/lib/pkgconfig
+# cd /home/ec2-user/tensorflow-examples/mixed-build
+
 pip3 install numpy
 
 # Install cmake 3.24.0
