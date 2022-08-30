@@ -28,6 +28,7 @@ SET(ABSL_PROPAGATE_CXX_STD ON)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ${Tesseract_INCLUDE_DIRS} )
+include_directories( ${Leptonica_INCLUDE_DIRS} )
 
 add_subdirectory(
   "${TENSOR_FLOW_SRC}/tensorflow/tensorflow/lite"
@@ -52,6 +53,7 @@ target_link_libraries(mixed
   tensorflow-lite
   ${OpenCV_LIBS}
   # Tesseract::libtesseract
+  ${Leptonica_LIBRARIES}
   ${Tesseract_LIBRARIES}
 )
 # https://forums.raspberrypi.com/viewtopic.php?t=292506
@@ -59,6 +61,7 @@ target_link_libraries(cedula
   tensorflow-lite
   ${OpenCV_LIBS}
   # Tesseract::libtesseract
+  ${Leptonica_LIBRARIES}
   ${Tesseract_LIBRARIES}
 )
 target_link_libraries(solvePnP
