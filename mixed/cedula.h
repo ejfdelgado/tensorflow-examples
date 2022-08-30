@@ -59,13 +59,15 @@ void postProcessCedula(
     uint CEDULA_HEIGHT,
     std::string TRAINED_FOLDER,
     uint dpi,
-    std::string outfolder)
+    std::string outfolder,
+    std::string imageIdentifier)
 {
     std::string photoPath;
     std::string signaturePath;
     std::string normalizedImage;
     std::string jsonPath;
     std::string ocrPath;
+    std::string roiIdPath;
     if (outfolder.compare("") == 0)
     {
         outfolder = "./";
@@ -75,6 +77,7 @@ void postProcessCedula(
     normalizedImage = outfolder + "normalized.jpg";
     jsonPath = outfolder + "actual.json";
     ocrPath = outfolder + "ocr.jpg";
+    roiIdPath = outfolder + "roi_id_" + imageIdentifier + ".jpg";
     // std::vector<cv::Point2f> sourcePoints = parseStringPoint2f(coords);
     cv::Mat dest = cutImage(src, sourcePoints, CEDULA_WIDTH, CEDULA_HEIGHT);
     cv::imwrite(normalizedImage.c_str(), dest);
@@ -101,13 +104,32 @@ void postProcessCedula(
 
     cv::imwrite(ocrPath.c_str(), dilate_dst);
 
+    float ROI_ID_X1 = 116;
+    float ROI_ID_Y1 = 130;
+    float ROI_ID_X2 = 501;
+    float ROI_ID_Y2 = 214;
+    float CONFIDENCE_ID = 96;
+
     // 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT, 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT
     std::string apellidos = extractText(dilate_dst, 0.0105263, 0.363077, 0.581053, 0.447692, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90);
     apellidos = cleanText(apellidos);
     std::string nombres = extractText(dilate_dst, 0.0115789, 0.506154, 0.587368, 0.593846, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90);
     nombres = cleanText(nombres);
-    std::string numCedula = extractText(dilate_dst, 123.f / CEDULA_WIDTH, 140.f / CEDULA_HEIGHT, 501.f / CEDULA_WIDTH, 209.f / CEDULA_HEIGHT, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 96);
+    std::string numCedula = extractText(dilate_dst, 
+        ROI_ID_X1 / CEDULA_WIDTH, 
+        ROI_ID_Y1 / CEDULA_HEIGHT, 
+        ROI_ID_X2 / CEDULA_WIDTH, 
+        ROI_ID_Y2 / CEDULA_HEIGHT, 
+        CEDULA_WIDTH, 
+        CEDULA_HEIGHT, 
+        TRAINED_FOLDER, 
+        dpi, 
+        CONFIDENCE_ID);
     numCedula = cleanNumber(numCedula);
+
+    cv::Rect myROI(ROI_ID_X1, ROI_ID_Y1, ROI_ID_X2 - ROI_ID_X1, ROI_ID_Y2 - ROI_ID_Y1);
+    cv::Mat roiId = dest(myROI);
+    cv::imwrite(roiIdPath.c_str(), roiId);
 
     std::vector<cv::Point2f> sourcePointsPhoto;
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));

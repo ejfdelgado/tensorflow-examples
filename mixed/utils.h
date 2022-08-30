@@ -1,12 +1,13 @@
+#ifndef __utils_h__
+#define __utils_h__
+
 #include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <regex>
 #include <sstream>
-
-#ifndef __utils_h__
-#define __utils_h__
+#include <unordered_map>
 
 template <typename T>
 std::vector<T> parseStringVector(std::string texto)
@@ -94,6 +95,7 @@ cv::ImreadModes string2ImreadModesEnum(std::string str)
   }
 }
 
+// Mat cropped_image = img(Range(80,280), Range(150,330));
 cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, uint destHeight)
 {
   cv::Point2f srcTri[4];
@@ -124,6 +126,22 @@ std::string jsonifyImageData(cv::Mat image)
   ss << "\"chanells\":" << image.channels();
   ss << "}";
   return ss.str();
+}
+
+std::string getRegexGroup(std::string pattern, std::string sp, int group)
+{
+  std::regex re(pattern.c_str());
+  std::smatch match;
+  if (std::regex_search(sp, match, re) == true)
+  {
+    // std::cout << "Match size = " << match.size() << std::endl;
+    //  match.position(1)
+    return match.str(group);
+  }
+  else
+  {
+    return "";
+  }
 }
 
 #endif

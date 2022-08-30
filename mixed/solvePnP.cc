@@ -3,6 +3,7 @@
  * that best brings the 3D points to their corresponding 2D points.
  */
 #include "solvePnP.h"
+#include "utils.h"
 
 #include <iostream>
 #include <string>
@@ -17,5 +18,9 @@ int main(int argc, char *argv[])
     {
         std::cout << "Projected to " << response[i] << std::endl;
     }
+
+    std::string encontrado = getRegexGroup("([^/]+)$", "esto/es/una/prueba.jpg", 1);
+    std::cout << encontrado << std::endl;
+
     return 0;
 }

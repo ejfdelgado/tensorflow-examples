@@ -197,7 +197,8 @@ void computeHigherRotation(
     float nmsth,
     int dpi,
     std::string outfolder,
-    std::string TRAINED_FOLDER)
+    std::string TRAINED_FOLDER,
+    std::string imageIdentifier)
 {
   std::string model = modelPathString + "/cedulas_vaale-fp16.tflite";
   std::string model2 = modelPathString + "/cedulas_vaale2-fp16.tflite";
@@ -367,7 +368,7 @@ void computeHigherRotation(
   {
     uint CEDULA_WIDTH = 850;
     uint CEDULA_HEIGHT = 550;
-    postProcessCedula(finalImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder);
+    postProcessCedula(finalImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder, imageIdentifier);
   }
 }
 
@@ -404,6 +405,10 @@ int main(int argc, char *argv[])
   String coords = parser.get<String>("coords");
   std::string TRAINED_FOLDER = parser.get<String>("ocrdir");
 
+  std::string soloNombre = getRegexGroup("([^/]+)$", imagePathString, 1);
+  soloNombre = getRegexGroup("([^.]+)", soloNombre, 1);
+  std::cout << "soloNombre: " << soloNombre << std::endl;
+
   cv::ImreadModes imageType = string2ImreadModesEnum(imageTypeString);
   cv::Mat image;
   image = cv::imread(imagePathString.c_str(), imageType);
@@ -432,7 +437,8 @@ int main(int argc, char *argv[])
       nmsth,
       dpi,
       outfolder,
-      TRAINED_FOLDER);
+      TRAINED_FOLDER,
+      soloNombre);
 
   // std::string myText = jsonifySegRes(myVector);
   // std::cout << myText << std::endl;
