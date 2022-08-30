@@ -13,7 +13,7 @@ project(mixed C CXX)
 # export Tesseract_DIR=/home/ec2-user/tesseract/tesseract-4.1.2/build
 # export OpenCV_DIR=/home/ec2-user/opencv-build
 # SET(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
-# SET(TENSOR_FLOW_SRC "/home/ec2-user")
+SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
 find_package( OpenCV REQUIRED )
 find_package(Tesseract 4 REQUIRED)
