@@ -3,6 +3,8 @@ project(mixed C CXX)
 
 find_package( OpenCV REQUIRED )
 
+set(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
+
 find_package(Tesseract 4)
 if (NOT Tesseract_FOUND)
     find_package(PkgConfig REQUIRED)
@@ -12,8 +14,8 @@ if (NOT Tesseract_FOUND)
 endif ()
 
 SET(ABSL_PROPAGATE_CXX_STD ON)
-SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
-#SET(TENSOR_FLOW_SRC "/home/ec2-user")
+#SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
+SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
