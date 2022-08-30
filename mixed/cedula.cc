@@ -301,59 +301,13 @@ void computeHigherRotation(
   cv::resize(optimus90, scaled, cv::Size(scaledWidth, scaledHeight), 0, 0, cv::INTER_AREA);
   std::cout << "Optimus degree % 90: " << maxDegree << std::endl;
 
-  std::vector<double> degreesDetail;
-  degreesDetail.push_back(0);
-  degreesDetail.push_back(5);
-  degreesDetail.push_back(-5);
-  degreesDetail.push_back(10);
-  degreesDetail.push_back(-10);
-
-  maxValue = -1;
-  maxDegree = -1;
-  std::vector<std::string> classes4Eval{"tit", "ph", "nom", "ape", "num", "sig", "bia", "fir", "e1", "e4"};
-  for (uint i = 0; i < degreesDetail.size(); i++)
-  {
-    double degree = degreesDetail[i];
-    std::stringstream ss;
-    ss << outfolder << "deg" << degree << "-";
-
-    float v = computeValueForRotation(
-        classes4Eval,
-        degree,
-        scaled,
-        class_names,
-        model,
-        modeString,
-        normalize,
-        scoreThreshold,
-        sth,
-        nmsth,
-        ss.str());
-    std::cout << "-----------------> degree:" << degree << ", val:" << v << std::endl;
-    if (v > maxValue)
-    {
-      maxValue = v;
-      maxDegree = degree;
-    }
-  }
-  std::cout << "Optimus degree " << maxDegree << std::endl;
-
   cv::Mat finalImage;
-
-  if (maxDegree == 0)
-  {
-    finalImage = optimus90;
-  }
-  else
-  {
-    finalImage = rotateImage(optimus90, maxDegree);
-  }
 
   std::vector<SegRes> myVector = runYoloOnce(
       class_names,
       model,
       modeString,
-      finalImage,
+      optimus90,
       normalize,
       scoreThreshold,
       sth,
@@ -368,7 +322,7 @@ void computeHigherRotation(
   {
     uint CEDULA_WIDTH = 850;
     uint CEDULA_HEIGHT = 550;
-    postProcessCedula(finalImage, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder, imageIdentifier);
+    postProcessCedula(optimus90, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder, imageIdentifier);
   }
 }
 
