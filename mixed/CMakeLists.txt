@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(mixed C CXX)
 
-find_package( OpenCV REQUIRED )
-
 # cmake ../mixed
 # cmake --build . -j 4
 
@@ -11,12 +9,15 @@ find_package( OpenCV REQUIRED )
 # SET(TENSOR_FLOW_SRC "/home/ejfdelgado/desarrollo/vaale/tensorflow")
 
 # For AMI
+# export Leptonica_DIR=/home/ec2-user/tesseract/leptonica-1.79.0
 # export Tesseract_DIR=/home/ec2-user/tesseract/tesseract-4.1.2/build
 # export OpenCV_DIR=/home/ec2-user/opencv-build
-#SET(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
-SET(TENSOR_FLOW_SRC "/home/ec2-user")
+# SET(CMAKE_PREFIX_PATH "/usr/local/lib/pkgconfig")
+# SET(TENSOR_FLOW_SRC "/home/ec2-user")
 
+find_package( OpenCV REQUIRED )
 find_package(Tesseract 4 REQUIRED)
+find_package(Leptonica REQUIRED)
 #if (NOT Tesseract_FOUND)
 #  find_package(PkgConfig REQUIRED)
 #  pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract lept)
