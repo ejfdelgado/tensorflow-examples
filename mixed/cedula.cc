@@ -188,9 +188,10 @@ std::vector<cv::Point2f> estimateCorners(std::vector<SegRes> myVector)
 void computeHigherRotation(
     std::vector<std::string> class_names,
     std::vector<std::string> class_names2,
+    std::vector<std::string> class_names3,
     std::string modelPathString,
     std::string modeString,
-    const cv::Mat &image,
+    cv::Mat &image,
     int normalize,
     float scoreThreshold,
     float sth,
@@ -198,41 +199,16 @@ void computeHigherRotation(
     int dpi,
     std::string outfolder,
     std::string TRAINED_FOLDER,
-    std::string imageIdentifier)
+    std::string imageIdentifier,
+    float MIN_UMBRAL_CEDULA)
 {
   std::string model = modelPathString + "/cedulas_vaale-fp16.tflite";
   std::string model2 = modelPathString + "/cedulas_vaale2-fp16.tflite";
-  cv::Mat scaled;
+  std::string model3 = modelPathString + "/roi_ids1-fp16.tflite";
 
   uint sizeScaled = 512;
-  uint originalWidth = image.cols;
-  uint originalHeight = image.rows;
-  uint scaledWidth = sizeScaled;
-  uint scaledHeight = sizeScaled;
-  uint offsetX = 0;
-  uint offsetY = 0;
-  if (originalWidth > originalHeight)
-  {
-    scaledHeight = sizeScaled * image.rows / image.cols;
-    offsetY = (sizeScaled - scaledHeight) * 0.5;
-  }
-  else
-  {
-    scaledWidth = sizeScaled * image.cols / image.rows;
-    offsetX = (sizeScaled - scaledWidth) * 0.5;
-  }
-  cv::Mat squared(sizeScaled, sizeScaled, CV_8UC3, cv::Scalar(0, 0, 0));
-  cv::resize(image, scaled, cv::Size(scaledWidth, scaledHeight), 0, 0, cv::INTER_AREA);
 
-  for (uint i = 0; i < scaledHeight; i++)
-  {
-    cv::Vec3b *ptr = scaled.ptr<cv::Vec3b>(i);
-    cv::Vec3b *ptrDest = squared.ptr<cv::Vec3b>(i + offsetY);
-    for (uint j = 0; j < scaledWidth; j++)
-    {
-      ptrDest[j + offsetX] = cv::Vec3b(ptr[j][0], ptr[j][1], ptr[j][2]);
-    }
-  }
+  cv::Mat squared = squareImage(image, sizeScaled);
 
   std::vector<std::string> classes4Eval2{"all"};
 
@@ -267,6 +243,20 @@ void computeHigherRotation(
     }
   }
 
+  if (maxValue < MIN_UMBRAL_CEDULA) {
+    std::ofstream myfile;
+    std::string jsonPath;
+    jsonPath = outfolder + "actual.json";
+    myfile.open(jsonPath.c_str(), std::ios::trunc);
+
+    myfile << "{\n\t\"umbral\":\"";
+    myfile << maxValue;
+    myfile << "\"\n}" << std::endl;
+
+    myfile.close();
+    return;
+  }
+
   cv::Mat optimus90;
   if (maxDegree == 90)
   {
@@ -286,10 +276,10 @@ void computeHigherRotation(
   }
 
   sizeScaled = 1024;
-  scaledWidth = sizeScaled;
-  scaledHeight = sizeScaled;
-  originalWidth = optimus90.cols;
-  originalHeight = optimus90.rows;
+  uint scaledWidth = sizeScaled;
+  uint scaledHeight = sizeScaled;
+  uint originalWidth = optimus90.cols;
+  uint originalHeight = optimus90.rows;
   if (originalWidth > originalHeight)
   {
     scaledHeight = sizeScaled * optimus90.rows / optimus90.cols;
@@ -298,6 +288,7 @@ void computeHigherRotation(
   {
     scaledWidth = sizeScaled * optimus90.cols / optimus90.rows;
   }
+  cv::Mat scaled;
   cv::resize(optimus90, scaled, cv::Size(scaledWidth, scaledHeight), 0, 0, cv::INTER_AREA);
   std::cout << "Optimus degree % 90: " << maxDegree << std::endl;
 
@@ -322,7 +313,23 @@ void computeHigherRotation(
   {
     uint CEDULA_WIDTH = 850;
     uint CEDULA_HEIGHT = 550;
-    postProcessCedula(optimus90, coords, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, outfolder, imageIdentifier);
+    postProcessCedula(
+      optimus90, 
+      coords, 
+      CEDULA_WIDTH, 
+      CEDULA_HEIGHT, 
+      TRAINED_FOLDER, 
+      dpi, 
+      outfolder, 
+      imageIdentifier, 
+      class_names3, 
+      model3,
+      modeString,
+      normalize,
+      scoreThreshold,
+      sth,
+      nmsth
+      );
   }
 }
 
@@ -337,6 +344,7 @@ int main(int argc, char *argv[])
                                "{threshold  th|0.6         |Threshold for score. Segmentation only.}"
                                "{sth          |0.5         |Threshold for class. Segmentation only.}"
                                "{nmsth        |0.45        |Threshold for nms. Segmentation only.}"
+                               "{escedula     |0.8         |Es una cedula.}"
                                "{dpi          |200         |Dots per inch for text detection.}"
                                "{cedula       |            |Cedula.}"
                                "{cedtam       |850,550     |Cedula Tamanio W,H.}"
@@ -353,6 +361,7 @@ int main(int argc, char *argv[])
   float scoreThreshold = parser.get<float>("threshold");
   float sth = parser.get<float>("sth");
   float nmsth = parser.get<float>("nmsth");
+  float MIN_UMBRAL_CEDULA = parser.get<float>("escedula");
   String outfolder = parser.get<String>("outfolder");
   String cedula = parser.get<String>("cedula");
   String cedtam = parser.get<String>("cedtam");
@@ -374,14 +383,17 @@ int main(int argc, char *argv[])
 
   std::vector<std::string> class_names;
   std::vector<std::string> class_names2;
+  std::vector<std::string> class_names3;
   class_names = readLabelsFile((modelPathString + "/cedulas_vaale-fp16.txt").c_str());
   class_names2 = readLabelsFile((modelPathString + "/cedulas_vaale2-fp16.txt").c_str());
+  class_names3 = readLabelsFile((modelPathString + "/roi_ids-fp16.txt").c_str());
 
   // 1. Generar las rotaciones de +90 +180 +270 y mirar cuál da el score más alto
 
   computeHigherRotation(
       class_names,
       class_names2,
+      class_names3,
       modelPathString,
       modeString,
       image,
@@ -392,7 +404,8 @@ int main(int argc, char *argv[])
       dpi,
       outfolder,
       TRAINED_FOLDER,
-      soloNombre);
+      soloNombre,
+      MIN_UMBRAL_CEDULA);
 
   // std::string myText = jsonifySegRes(myVector);
   // std::cout << myText << std::endl;

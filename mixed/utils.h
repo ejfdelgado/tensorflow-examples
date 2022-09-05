@@ -95,6 +95,63 @@ cv::ImreadModes string2ImreadModesEnum(std::string str)
   }
 }
 
+cv::Mat closing(cv::Mat &dest, int erosion_size) {
+    // equalizar
+    cv::Mat grayScale;
+    cv::cvtColor(dest, grayScale, cv::COLOR_BGR2GRAY);
+    // cv::Mat equalized;
+    // cv::equalizeHist( grayScale, equalized );
+
+    int erosion_type;
+    //int erosion_size = 1;
+    // erosion_type = cv::MORPH_RECT;
+    erosion_type = cv::MORPH_CROSS;
+    // erosion_type = cv::MORPH_ELLIPSE;
+
+    cv::Mat erosionElement = cv::getStructuringElement(erosion_type,
+                                                       cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+                                                       cv::Point(erosion_size, erosion_size));
+    cv::Mat erosion_dst;
+    cv::erode(grayScale, erosion_dst, erosionElement);
+    cv::Mat dilate_dst;
+    cv::dilate(erosion_dst, dilate_dst, erosionElement);
+
+    return dilate_dst;
+}
+
+cv::Mat squareImage(cv::Mat &image, uint sizeScaled) {
+  cv::Mat scaled;
+  uint originalWidth = image.cols;
+  uint originalHeight = image.rows;
+  uint scaledWidth = sizeScaled;
+  uint scaledHeight = sizeScaled;
+  uint offsetX = 0;
+  uint offsetY = 0;
+  if (originalWidth > originalHeight)
+  {
+    scaledHeight = sizeScaled * image.rows / image.cols;
+    offsetY = (sizeScaled - scaledHeight) * 0.5;
+  }
+  else
+  {
+    scaledWidth = sizeScaled * image.cols / image.rows;
+    offsetX = (sizeScaled - scaledWidth) * 0.5;
+  }
+  cv::Mat squared(sizeScaled, sizeScaled, CV_8UC3, cv::Scalar(0, 0, 0));
+  cv::resize(image, scaled, cv::Size(scaledWidth, scaledHeight), 0, 0, cv::INTER_AREA);
+
+  for (uint i = 0; i < scaledHeight; i++)
+  {
+    cv::Vec3b *ptr = scaled.ptr<cv::Vec3b>(i);
+    cv::Vec3b *ptrDest = squared.ptr<cv::Vec3b>(i + offsetY);
+    for (uint j = 0; j < scaledWidth; j++)
+    {
+      ptrDest[j + offsetX] = cv::Vec3b(ptr[j][0], ptr[j][1], ptr[j][2]);
+    }
+  }
+  return squared;
+}
+
 // Mat cropped_image = img(Range(80,280), Range(150,330));
 cv::Mat cutImage(cv::Mat &src, std::vector<cv::Point2f> source, uint destWidth, uint destHeight)
 {
