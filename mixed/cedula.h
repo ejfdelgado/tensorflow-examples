@@ -16,15 +16,16 @@ std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, flo
     tesseract::TessBaseAPI *ocr = new tesseract::TessBaseAPI();
     // https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html
     ocr->Init(folderTrain.c_str(), "spa", tesseract::OEM_LSTM_ONLY);
-    //ocr->SetPageSegMode(tesseract::PSM_AUTO);
-    ocr->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
     ocr->SetImage(dilate_dst.data, dilate_dst.cols, dilate_dst.rows, dilate_dst.channels(), dilate_dst.step);
-
+    ocr->SetPageSegMode(tesseract::PSM_AUTO);
+    
     if (isNumber) {
+        
         ocr->SetVariable("tessedit_char_blacklist", "!?@#$%&*()<>_-+=/:;'\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
         ocr->SetVariable("tessedit_char_whitelist", "0123456789");
         ocr->SetVariable("classify_bln_numeric_mode", "1");
     } else {
+        //ocr->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
         ocr->SetVariable("tessedit_char_blacklist", "0123456789!?@#$%&*()<>_-+=/:;'\"abcdefghijklmnopqrstuvwxyz");
         ocr->SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
     }
@@ -111,7 +112,7 @@ void postProcessCedula(
     cv::imwrite(normalizedImage.c_str(), dest);
 
     cv::Mat dilate_dst = closing(dest, 1);
-    cv::imwrite(ocrPath.c_str(), dilate_dst);
+    //cv::imwrite(ocrPath.c_str(), dilate_dst);
 
     float ROI_ID_X1 = 116;
     float ROI_ID_Y1 = 130;
@@ -227,7 +228,7 @@ void postProcessCedula(
         myOCR = num_final.str();
     }
 
-    cv::imwrite(roiIdPath.c_str(), roiId);
+    //cv::imwrite(roiIdPath.c_str(), roiId);
 
     std::vector<cv::Point2f> sourcePointsPhoto;
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
