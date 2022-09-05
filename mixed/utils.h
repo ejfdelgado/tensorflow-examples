@@ -119,7 +119,7 @@ cv::Mat closing(cv::Mat &dest, int erosion_size) {
     return dilate_dst;
 }
 
-cv::Mat squareImage(cv::Mat &image, uint sizeScaled) {
+cv::Mat squareImage(cv::Mat &image, uint sizeScaled, uint* offsetXOut, uint* offsetYOut) {
   cv::Mat scaled;
   uint originalWidth = image.cols;
   uint originalHeight = image.rows;
@@ -136,6 +136,12 @@ cv::Mat squareImage(cv::Mat &image, uint sizeScaled) {
   {
     scaledWidth = sizeScaled * image.cols / image.rows;
     offsetX = (sizeScaled - scaledWidth) * 0.5;
+  }
+  if (offsetYOut != NULL) {
+    *offsetYOut = offsetY;
+  }
+  if (offsetXOut != NULL) {
+    *offsetXOut = offsetX;
   }
   cv::Mat squared(sizeScaled, sizeScaled, CV_8UC3, cv::Scalar(0, 0, 0));
   cv::resize(image, scaled, cv::Size(scaledWidth, scaledHeight), 0, 0, cv::INTER_AREA);

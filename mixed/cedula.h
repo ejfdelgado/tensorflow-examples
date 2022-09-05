@@ -139,7 +139,10 @@ void postProcessCedula(
 
     cv::Rect myROI(ROI_ID_X1, ROI_ID_Y1, ROI_ID_X2 - ROI_ID_X1, ROI_ID_Y2 - ROI_ID_Y1);
     cv::Mat roiId = dest(myROI);
-    cv::Mat roiIdSquare = squareImage(roiId, 640);
+
+    uint offsetXOut;
+    uint offsetYOut;
+    cv::Mat roiIdSquare = squareImage(roiId, 640, &offsetXOut, &offsetYOut);
     std::stringstream num_final;
     std::vector<SegRes> ocrNumbers = runYoloOnce(
         class_names,
@@ -165,10 +168,11 @@ void postProcessCedula(
     num_avg_h = num_avg_h / ((float)num_total);
     std::cout << "avgs: " << num_avg_w << " x " << num_avg_h << std::endl;
 
-    // Elimino los que están por fuera del rango:
+    // Elimino los que están por fuera del rango promedio
     float UMBRAL_ALTURA_MINIMA = 0.8;
     float UMBRAL_ALTURA_MAXIMA = 1.2;
     float UMBRAL_GAP = 0.62;
+    float UMBRAL_CLOSE_Y = 0.075;
     float num_comp_w;
     float num_comp_h;
     for (uint k=0; k<ocrNumbers.size(); k++) {
@@ -186,7 +190,11 @@ void postProcessCedula(
     // Calculo gap entre el actual y el anterior
     float lastXF = -1;
     float gapBetween = 0;
-
+    uint ocrWidth = roiIdSquare.cols;
+    uint ocrHeight = roiIdSquare.rows;
+    float yUpProportion;
+    float yDownProportion;
+    bool riskyNumber = false;
     for (int k=0; k<num_total; k++) {
         SegRes temp = ocrNumbers[k];
         num_comp_h = (temp.yf - temp.yi)/num_avg_h;
@@ -199,12 +207,25 @@ void postProcessCedula(
         if (gapBetween > UMBRAL_GAP) {
             num_final << "_";
         }
+        yUpProportion = (temp.yi-offsetYOut)/num_avg_h;
+        yDownProportion = (ocrHeight - offsetYOut - temp.yf)/num_avg_h;
+
+        if (yUpProportion < UMBRAL_CLOSE_Y || yDownProportion < UMBRAL_CLOSE_Y) {
+            riskyNumber = true;
+            break;
+        }
+
         num_final << temp.c;
+        
         std::cout << temp.c << ", gap=" << gapBetween << ", " << num_comp_w << " x " << num_comp_h << std::endl;
+        std::cout << "too close to top/bottom border: " << yUpProportion << ", " << yDownProportion << std::endl;
     }
     std::cout << std::endl;
 
-    std::cout << num_final.str() << std::endl;
+    std::string myOCR = "";
+    if (!riskyNumber) {
+        myOCR = num_final.str();
+    }
 
     cv::imwrite(roiIdPath.c_str(), roiId);
 
@@ -230,7 +251,7 @@ void postProcessCedula(
     myfile << "{\n\t\"old_id\":\"";
     myfile << numCedula;
     myfile << "\",\n\t\"id\":\"";
-    myfile << num_final.str();
+    myfile << myOCR;
     myfile << "\",\n\t\"names\":\"";
     myfile << nombres;
     myfile << "\",\n\t\"lastnames\":\"";

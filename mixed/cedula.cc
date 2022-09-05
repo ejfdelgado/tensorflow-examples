@@ -208,7 +208,7 @@ void computeHigherRotation(
 
   uint sizeScaled = 512;
 
-  cv::Mat squared = squareImage(image, sizeScaled);
+  cv::Mat squared = squareImage(image, sizeScaled, NULL, NULL);
 
   std::vector<std::string> classes4Eval2{"all"};
 
