@@ -16,7 +16,7 @@
 // cmake ../mixed
 // cmake --build . -j 4
 
-// ./cedula ./cedulas/img0002.jpg ../tensor_python/models -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -outfolder=./process/img0002/
+// ./cedula ./cedulas/img0083.jpg ../tensor_python/models -it=IMREAD_COLOR -m=FLOAT -n=10 -th=0.7 -outfolder=./process/img0083/
 
 using namespace cv;
 using namespace std;

@@ -4,6 +4,7 @@
 #include <tesseract/baseapi.h>
 #include <opencv2/opencv.hpp>
 #include "utils.h"
+#include <math.h>
 
 // TODO
 // OCR de números propio
@@ -115,9 +116,9 @@ void postProcessCedula(
     //cv::imwrite(ocrPath.c_str(), dilate_dst);
 
     float ROI_ID_X1 = 116;
-    float ROI_ID_Y1 = 130;
+    float ROI_ID_Y1 = 128;
     float ROI_ID_X2 = 501;
-    float ROI_ID_Y2 = 214;
+    float ROI_ID_Y2 = 222;//214
     float CONFIDENCE_ID = 96;
 
     // 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT, 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT
@@ -160,27 +161,66 @@ void postProcessCedula(
     std::cout << "numeros: " << num_total << std::endl;
     float num_avg_w = 0;
     float num_avg_h = 0;
+    float num_med_cx = -1;
+    float num_med_cy = -1;
+    std::vector<float> num_med_cx_arr;
+    std::vector<float> num_med_cy_arr;
     for (int k=0; k<num_total; k++) {
         SegRes temp = ocrNumbers[k];
         num_avg_w += temp.xf - temp.xi;
         num_avg_h += temp.yf - temp.yi;
+        num_med_cx_arr.push_back(temp.cx);
+        num_med_cy_arr.push_back(temp.cy);
     }
+    // ordeno los vectores
+    std::sort(num_med_cx_arr.begin(), num_med_cx_arr.end());
+    std::sort(num_med_cy_arr.begin(), num_med_cy_arr.end());
+    // calculo la mitad
+    uint ix_mitad_x = ceil(((float)num_med_cx_arr.size())/2.0f);
+    uint ix_mitad_y = ceil(((float)num_med_cy_arr.size())/2.0f);
+    num_med_cx = num_med_cx_arr[ix_mitad_x];
+    num_med_cy = num_med_cy_arr[ix_mitad_y];
+
     num_avg_w = num_avg_w / ((float)num_total);
     num_avg_h = num_avg_h / ((float)num_total);
     std::cout << "avgs: " << num_avg_w << " x " << num_avg_h << std::endl;
+    std::cout << "median center: " << num_med_cx << " x " << num_med_cy << std::endl;
 
     // Elimino los que están por fuera del rango promedio
     float UMBRAL_ALTURA_MINIMA = 0.8;
     float UMBRAL_ALTURA_MAXIMA = 1.2;
+    float UMBRAL_ANCHO_MINIMO = 0.3;
+    float UMBRAL_ANCHO_MAXIMO = 1.5;
+    float UMBRAL_CENTER_Y = 1.0;
     float UMBRAL_GAP = 0.62;
     float UMBRAL_CLOSE_Y = 0.075;
+    float MIN_CONFIDENCE = 0.76;// Tal vez subir a 0.8
+    float MIN_TAMANIO = 0.3;// Debe ser mayor a 0.27 y se prefiere pequeño
     float num_comp_w;
     float num_comp_h;
+    float num_comp_cx;
+    float num_comp_cy;
+    float numTamanio;
     for (uint k=0; k<ocrNumbers.size(); k++) {
         SegRes temp = ocrNumbers[k];
-        num_comp_h = (temp.yf - temp.yi)/num_avg_h;
-        if (num_comp_h < UMBRAL_ALTURA_MINIMA || num_comp_h > UMBRAL_ALTURA_MAXIMA) {
-            std::cout << "borrando " << temp.c << ", h: " << num_comp_h << std::endl;
+        float ancho = (temp.xf - temp.xi);
+        float alto = (temp.yf - temp.yi);
+        numTamanio = ancho*alto/(num_avg_w*num_avg_h);
+        num_comp_w = ancho/num_avg_w;
+        num_comp_h = alto/num_avg_h;
+        num_comp_cx = (temp.cx - num_med_cx)/num_avg_w;
+        num_comp_cy = fabs(temp.cy - num_med_cy)/num_avg_h;
+        std::cout << "?" << temp.c << "@" << temp.v << "x" << numTamanio << ", w: " << num_comp_w << ", h: " << num_comp_h << " cy: " << num_comp_cy << std::endl;
+        if (
+            num_comp_w < UMBRAL_ANCHO_MINIMO || 
+            num_comp_w > UMBRAL_ANCHO_MAXIMO || 
+            num_comp_h < UMBRAL_ALTURA_MINIMA || 
+            num_comp_h > UMBRAL_ALTURA_MAXIMA ||
+            num_comp_cy > UMBRAL_CENTER_Y ||
+            temp.v < MIN_CONFIDENCE ||
+            numTamanio < MIN_TAMANIO
+        ) {
+            std::cout << "Borrando " << temp.c << ", w: " << num_comp_w << ", h: " << num_comp_h << " cy: " << num_comp_cy << std::endl;
             ocrNumbers.erase(ocrNumbers.begin() + k);
         }
     }
@@ -196,6 +236,8 @@ void postProcessCedula(
     float yUpProportion;
     float yDownProportion;
     bool riskyNumber = false;
+    float riskyNumberCount = 0;
+    float riskyNumberTotal = 0;
     for (int k=0; k<num_total; k++) {
         SegRes temp = ocrNumbers[k];
         num_comp_h = (temp.yf - temp.yi)/num_avg_h;
@@ -213,15 +255,30 @@ void postProcessCedula(
 
         if (yUpProportion < UMBRAL_CLOSE_Y || yDownProportion < UMBRAL_CLOSE_Y) {
             riskyNumber = true;
-            break;
+            riskyNumberCount++;
+        } else {
+            riskyNumber = false;
         }
+        riskyNumberTotal++;
 
         num_final << temp.c;
         
         std::cout << temp.c << ", gap=" << gapBetween << ", " << num_comp_w << " x " << num_comp_h << std::endl;
-        std::cout << "too close to top/bottom border: " << yUpProportion << ", " << yDownProportion << std::endl;
+        if (riskyNumber) {
+            std::cout << "too close to top/bottom border: [" << yUpProportion << ", " << yDownProportion << "] vs " << UMBRAL_CLOSE_Y << std::endl;
+        }
     }
     std::cout << std::endl;
+
+    float riskyScore = riskyNumberCount/riskyNumberTotal;
+    float RISKY_THRESHOLD = (2.0f/10.0f);
+    riskyNumber = (riskyScore > RISKY_THRESHOLD);
+
+    if (riskyNumber) {
+        std::cout << "Is Risky Score!: " << riskyScore << " vs " << RISKY_THRESHOLD << std::endl;
+    } else {
+        std::cout << "not risky score: " << riskyScore << " vs " << RISKY_THRESHOLD << std::endl;
+    }
 
     std::string myOCR = "";
     if (!riskyNumber) {
@@ -261,6 +318,8 @@ void postProcessCedula(
     myfile << photoPath;
     myfile << "\",\n\t\"signaturePath\":\"";
     myfile << signaturePath;
+    myfile << "\",\n\t\"normalized\":\"";
+    myfile << normalizedImage;
     myfile << "\"\n}" << std::endl;
 
     myfile.close();
