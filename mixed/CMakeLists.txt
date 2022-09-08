@@ -15,7 +15,7 @@ project(mixed C CXX)
 find_package( OpenCV REQUIRED )
 find_package(Tesseract 4 REQUIRED)
 
-SET(modo "AWS")
+SET(modo "LOCAL")
 
 IF(modo STREQUAL "LOCAL")
   message("Running Local...")
