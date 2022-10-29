@@ -83,12 +83,9 @@ bool firstSegResLeft(const SegRes &a, const SegRes &b)
   return b.cx > a.cx;
 }
 
-std::string ocrFunNum(
+std::string ocrFunTxt(
     cv::Mat dest, 
-    float ROI_ID_X1, 
-    float ROI_ID_Y1, 
-    float ROI_ID_X2, 
-    float ROI_ID_Y2, 
+    float* ROI_ID,
     std::vector<std::string> class_names, 
     std::string modelPathString,
     std::string modeString,
@@ -98,6 +95,54 @@ std::string ocrFunNum(
     float nmsth,
     std::string outfolder
     ) {
+    float ROI_ID_X1 = ROI_ID[0];
+    float ROI_ID_Y1 = ROI_ID[1];
+    float ROI_ID_X2 = ROI_ID[2];
+    float ROI_ID_Y2 = ROI_ID[3];
+    cv::Rect myROI(ROI_ID_X1, ROI_ID_Y1, ROI_ID_X2 - ROI_ID_X1, ROI_ID_Y2 - ROI_ID_Y1);
+    cv::Mat roiId = dest(myROI);
+
+    uint offsetXOut;
+    uint offsetYOut;
+    cv::Mat roiIdSquare = squareImage(roiId, 640, &offsetXOut, &offsetYOut);
+    std::vector<SegRes> ocrCharaters = runYoloOnce(
+        class_names,
+        modelPathString,
+        modeString,
+        roiIdSquare,
+        normalize,
+        scoreThreshold,
+        sth,
+        nmsth,
+        outfolder);
+    uint letras_total = ocrCharaters.size();
+    std::sort(ocrCharaters.begin(), ocrCharaters.end(), firstSegResLeft);
+    std::cout << "Letras:";
+    for (int k=0; k<letras_total; k++) {
+        SegRes temp = ocrCharaters[k];
+        std::string letra = temp.c;
+        std::cout << letra;
+    }
+    std::cout << std::endl;
+    return "";
+}
+
+std::string ocrFunNum(
+    cv::Mat dest, 
+    float* ROI_ID,
+    std::vector<std::string> class_names, 
+    std::string modelPathString,
+    std::string modeString,
+    int normalize,
+    float scoreThreshold,
+    float sth,
+    float nmsth,
+    std::string outfolder
+    ) {
+    float ROI_ID_X1 = ROI_ID[0];
+    float ROI_ID_Y1 = ROI_ID[1];
+    float ROI_ID_X2 = ROI_ID[2];
+    float ROI_ID_Y2 = ROI_ID[3];
     cv::Rect myROI(ROI_ID_X1, ROI_ID_Y1, ROI_ID_X2 - ROI_ID_X1, ROI_ID_Y2 - ROI_ID_Y1);
     cv::Mat roiId = dest(myROI);
 
@@ -330,12 +375,35 @@ void postProcessCedula(
     
     std::string myOCR = ocrFunNum(
         dest, 
-        ROI_ID[0], 
-        ROI_ID[1], 
-        ROI_ID[2], 
-        ROI_ID[3], 
+        ROI_ID,
         class_names, 
         modelPathString,
+        modeString,
+        normalize,
+        scoreThreshold,
+        sth,
+        nmsth,
+        outfolder
+    );
+
+    std::string myLastName = ocrFunTxt(
+        dest, 
+        ROI_LAST_NAME,
+        class_names4, 
+        modelPathString4,
+        modeString,
+        normalize,
+        scoreThreshold,
+        sth,
+        nmsth,
+        outfolder
+    );
+
+    std::string myName = ocrFunTxt(
+        dest, 
+        ROI_NAME,
+        class_names4, 
+        modelPathString4,
         modeString,
         normalize,
         scoreThreshold,
