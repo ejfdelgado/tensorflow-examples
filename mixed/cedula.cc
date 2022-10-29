@@ -189,6 +189,7 @@ void computeHigherRotation(
     std::vector<std::string> class_names,
     std::vector<std::string> class_names2,
     std::vector<std::string> class_names3,
+    std::vector<std::string> class_names4,
     std::string modelPathString,
     std::string modeString,
     cv::Mat &image,
@@ -205,6 +206,7 @@ void computeHigherRotation(
   std::string model = modelPathString + "/cedulas_vaale-fp16.tflite";
   std::string model2 = modelPathString + "/cedulas_vaale2-fp16.tflite";
   std::string model3 = modelPathString + "/roi_ids1-fp16.tflite";
+  std::string model4 = modelPathString + "/letras1-fp16.tflite";
 
   uint sizeScaled = 512;
 
@@ -324,6 +326,8 @@ void computeHigherRotation(
       imageIdentifier, 
       class_names3, 
       model3,
+      class_names4, 
+      model4,
       modeString,
       normalize,
       scoreThreshold,
@@ -384,9 +388,11 @@ int main(int argc, char *argv[])
   std::vector<std::string> class_names;
   std::vector<std::string> class_names2;
   std::vector<std::string> class_names3;
+  std::vector<std::string> class_names4;
   class_names = readLabelsFile((modelPathString + "/cedulas_vaale-fp16.txt").c_str());
   class_names2 = readLabelsFile((modelPathString + "/cedulas_vaale2-fp16.txt").c_str());
   class_names3 = readLabelsFile((modelPathString + "/roi_ids-fp16.txt").c_str());
+  class_names4 = readLabelsFile((modelPathString + "/letras1-fp16.txt").c_str());
 
   // 1. Generar las rotaciones de +90 +180 +270 y mirar cuál da el score más alto
 
@@ -394,6 +400,7 @@ int main(int argc, char *argv[])
       class_names,
       class_names2,
       class_names3,
+      class_names4,
       modelPathString,
       modeString,
       image,

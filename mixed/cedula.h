@@ -11,7 +11,7 @@
 // Si en las rotaciones ninguno tiene un minimos score de 70 se termina
 // Recortar también los nombres y apellidos
 
-std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, float yyf, float CEDULA_WIDTH, float CEDULA_HEIGHT, std::string folderTrain, int dpi, float UMBRAL, bool isNumber)
+std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, float yyf, float CEDULA_WIDTH, float CEDULA_HEIGHT, std::string folderTrain, int dpi, float UMBRAL, bool isNumber, std::string roiPath)
 {
     // std::cout << xxi << ", " << yyi << ", " << xxf << ", " << yyf << std::endl;
     tesseract::TessBaseAPI *ocr = new tesseract::TessBaseAPI();
@@ -40,6 +40,11 @@ std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, flo
     ocr->SetSourceResolution(dpi);
 
     ocr->Recognize(0);
+
+    if (roiPath.length() > 0) {
+        cv::Mat cropped_image = dilate_dst(cv::Range(yi,yf), cv::Range(xi,xf));
+        cv::imwrite(roiPath.c_str(), cropped_image);
+    }
 
     tesseract::ResultIterator *ri = ocr->GetIterator();
     tesseract::PageIteratorLevel level = tesseract::RIL_WORD;
@@ -74,71 +79,21 @@ bool firstSegResLeft(const SegRes &a, const SegRes &b)
   return b.cx > a.cx;
 }
 
-void postProcessCedula(
-    cv::Mat src,
-    std::vector<cv::Point2f> sourcePoints,
-    uint CEDULA_WIDTH,
-    uint CEDULA_HEIGHT,
-    std::string TRAINED_FOLDER,
-    uint dpi,
-    std::string outfolder,
-    std::string imageIdentifier,
-    std::vector<std::string> class_names,
+std::string ocrFunNum(
+    cv::Mat dest, 
+    float ROI_ID_X1, 
+    float ROI_ID_Y1, 
+    float ROI_ID_X2, 
+    float ROI_ID_Y2, 
+    std::vector<std::string> class_names, 
     std::string modelPathString,
     std::string modeString,
     int normalize,
     float scoreThreshold,
     float sth,
-    float nmsth
-    )
-{
-    std::string photoPath;
-    std::string signaturePath;
-    std::string normalizedImage;
-    std::string jsonPath;
-    std::string ocrPath;
-    std::string roiIdPath;
-    if (outfolder.compare("") == 0)
-    {
-        outfolder = "./";
-    }
-    photoPath = outfolder + "photo.jpg";
-    signaturePath = outfolder + "signature.jpg";
-    normalizedImage = outfolder + "normalized.jpg";
-    jsonPath = outfolder + "actual.json";
-    ocrPath = outfolder + "ocr.jpg";
-    roiIdPath = outfolder + "roi_id_" + imageIdentifier + ".jpg";
-    // std::vector<cv::Point2f> sourcePoints = parseStringPoint2f(coords);
-    cv::Mat dest = cutImage(src, sourcePoints, CEDULA_WIDTH, CEDULA_HEIGHT);
-    cv::imwrite(normalizedImage.c_str(), dest);
-
-    cv::Mat dilate_dst = closing(dest, 1);
-    //cv::imwrite(ocrPath.c_str(), dilate_dst);
-
-    float ROI_ID_X1 = 116;
-    float ROI_ID_Y1 = 128;
-    float ROI_ID_X2 = 501;
-    float ROI_ID_Y2 = 222;//214
-    float CONFIDENCE_ID = 96;
-
-    // 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT, 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT
-    std::string apellidos = extractText(dilate_dst, 0.0105263, 0.363077, 0.581053, 0.447692, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90, false);
-    apellidos = cleanText(apellidos);
-    std::string nombres = extractText(dilate_dst, 0.0115789, 0.506154, 0.587368, 0.593846, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90, false);
-    nombres = cleanText(nombres);
-    std::string numCedula = extractText(dilate_dst, 
-        ROI_ID_X1 / CEDULA_WIDTH, 
-        ROI_ID_Y1 / CEDULA_HEIGHT, 
-        ROI_ID_X2 / CEDULA_WIDTH, 
-        ROI_ID_Y2 / CEDULA_HEIGHT, 
-        CEDULA_WIDTH, 
-        CEDULA_HEIGHT, 
-        TRAINED_FOLDER, 
-        dpi, 
-        CONFIDENCE_ID,
-        true);
-    numCedula = cleanNumber(numCedula);
-
+    float nmsth,
+    std::string outfolder
+    ) {
     cv::Rect myROI(ROI_ID_X1, ROI_ID_Y1, ROI_ID_X2 - ROI_ID_X1, ROI_ID_Y2 - ROI_ID_Y1);
     cv::Mat roiId = dest(myROI);
 
@@ -284,6 +239,97 @@ void postProcessCedula(
     if (!riskyNumber) {
         myOCR = num_final.str();
     }
+    return myOCR;
+}
+
+void postProcessCedula(
+    cv::Mat src,
+    std::vector<cv::Point2f> sourcePoints,
+    uint CEDULA_WIDTH,
+    uint CEDULA_HEIGHT,
+    std::string TRAINED_FOLDER,
+    uint dpi,
+    std::string outfolder,
+    std::string imageIdentifier,
+    std::vector<std::string> class_names,
+    std::string modelPathString,
+    std::vector<std::string> class_names4,
+    std::string modelPathString4,
+    std::string modeString,
+    int normalize,
+    float scoreThreshold,
+    float sth,
+    float nmsth
+    )
+{
+    std::string photoPath;
+    std::string signaturePath;
+    std::string normalizedImage;
+    std::string jsonPath;
+    std::string ocrPath;
+    std::string roiIdPath;
+    std::string roiNamePath;
+    std::string roiLastNamePath;
+    if (outfolder.compare("") == 0)
+    {
+        outfolder = "./";
+    }
+    photoPath = outfolder + "photo.jpg";
+    signaturePath = outfolder + "signature.jpg";
+    normalizedImage = outfolder + "normalized.jpg";
+    jsonPath = outfolder + "actual.json";
+    ocrPath = outfolder + "ocr.jpg";
+    roiIdPath = outfolder + "roi_id_" + imageIdentifier + ".jpg";
+    roiNamePath = outfolder + "roi_name01_" + imageIdentifier + ".jpg";
+    roiLastNamePath = outfolder + "roi_name02_" + imageIdentifier + ".jpg";
+    // std::vector<cv::Point2f> sourcePoints = parseStringPoint2f(coords);
+    cv::Mat dest = cutImage(src, sourcePoints, CEDULA_WIDTH, CEDULA_HEIGHT);
+    cv::imwrite(normalizedImage.c_str(), dest);
+
+    cv::Mat dilate_dst = closing(dest, 1);
+    //cv::imwrite(ocrPath.c_str(), dilate_dst);
+
+    float ROI_ID_X1 = 116;
+    float ROI_ID_Y1 = 128;
+    float ROI_ID_X2 = 501;
+    float ROI_ID_Y2 = 222;//214
+    float CONFIDENCE_ID = 96;
+
+    // 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT, 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT
+    float gap = 0.01;
+    std::string apellidos = extractText(dest, 0.0105263-gap, 0.363077-gap*4, 0.581053+gap, 0.447692+gap*4, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90, false, roiNamePath);
+    apellidos = cleanText(apellidos);
+    std::string nombres = extractText(dest, 0.0115789-gap, 0.506154-gap*2, 0.587368+gap, 0.593846+gap*4, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90, false, roiLastNamePath);
+    nombres = cleanText(nombres);
+    std::string numCedula = extractText(dilate_dst, 
+        ROI_ID_X1 / CEDULA_WIDTH, 
+        ROI_ID_Y1 / CEDULA_HEIGHT, 
+        ROI_ID_X2 / CEDULA_WIDTH, 
+        ROI_ID_Y2 / CEDULA_HEIGHT, 
+        CEDULA_WIDTH, 
+        CEDULA_HEIGHT, 
+        TRAINED_FOLDER, 
+        dpi, 
+        CONFIDENCE_ID,
+        true,
+        "");
+    numCedula = cleanNumber(numCedula);
+    
+    std::string myOCR = ocrFunNum(
+        dest, 
+        ROI_ID_X1, 
+        ROI_ID_Y1, 
+        ROI_ID_X2, 
+        ROI_ID_Y2, 
+        class_names, 
+        modelPathString,
+        modeString,
+        normalize,
+        scoreThreshold,
+        sth,
+        nmsth,
+        outfolder
+    );
 
     //cv::imwrite(roiIdPath.c_str(), roiId);
 
