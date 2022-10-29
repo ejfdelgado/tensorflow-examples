@@ -88,14 +88,16 @@ void computeConnectedCharacters(
     std::vector<SegRes>& letrasConectadas, 
     float cx, 
     float cy, 
-    float maxDistance
+    float maxDistanceX,
+    float maxDistanceY
     ) {
         if (ocrCharaters.size() == 0) { return; }
         uint k = 0;
         do {
             SegRes temp = ocrCharaters[k];
-            float distance = sqrt(pow((temp.cx - cx), 2) + pow((temp.cy - cy), 2));
-            if (distance < maxDistance) {
+            float distanceX = abs(temp.cx - cx);
+            float distanceY = abs(temp.cy - cy);
+            if (distanceX < maxDistanceX && distanceY < maxDistanceY) {
                 temp.connected = true;
                 letrasConectadas.push_back(temp);
                 ocrCharaters.erase(ocrCharaters.begin() + k);
@@ -202,11 +204,13 @@ std::string ocrFunTxt(
         temp.checked = false;
         temp.connected = false;
     }
-
-    float DISTANCIA_CONECTADA = num_med_h;
+    
+    // Se favorce el estar conectado en el eje X
+    float DISTANCIA_CONECTADA_X = num_med_w*2;
+    float DISTANCIA_CONECTADA_Y = num_med_h*0.5;
     float UMBRAL_ESPACIO = 0;
 
-    computeConnectedCharacters(ocrCharaters, letrasConectadas, num_med_cx, num_med_cy, DISTANCIA_CONECTADA);
+    computeConnectedCharacters(ocrCharaters, letrasConectadas, num_med_cx, num_med_cy, DISTANCIA_CONECTADA_X, DISTANCIA_CONECTADA_Y);
     uint conectadosSinCheck;
     do {
         conectadosSinCheck = 0;
@@ -221,7 +225,7 @@ std::string ocrFunTxt(
         for (uint k=0; k<letrasActuales.size(); k++) {
             uint indice = letrasActuales[k];
             SegRes temp = letrasConectadas[indice];
-            computeConnectedCharacters(ocrCharaters, letrasConectadas, temp.cx, temp.cy, DISTANCIA_CONECTADA);
+            computeConnectedCharacters(ocrCharaters, letrasConectadas, temp.cx, temp.cy, DISTANCIA_CONECTADA_X, DISTANCIA_CONECTADA_Y);
             letrasConectadas[indice].checked = true;
         }
     } while(conectadosSinCheck > 0);
@@ -472,21 +476,6 @@ void postProcessCedula(
     float WIDTH_NAMES = 502 * gap;
     float ROI_LAST_NAME[4] = {0, 177, WIDTH_NAMES, 268};
     float ROI_NAME[4] = {0, 267, WIDTH_NAMES, 348};
-    
-    std::string apellidos = extractText(dest, 
-        ROI_LAST_NAME,
-        CEDULA_WIDTH, 
-        CEDULA_HEIGHT, 
-        TRAINED_FOLDER, 
-        dpi, 90, false, roiNamePath);
-    apellidos = cleanText(apellidos);
-
-    std::string nombres = extractText(dest, 
-        ROI_NAME,
-        CEDULA_WIDTH, 
-        CEDULA_HEIGHT, 
-        TRAINED_FOLDER, dpi, 90, false, roiLastNamePath);
-    nombres = cleanText(nombres);
 
     std::string numCedula = extractText(dilate_dst, 
         ROI_ID,
