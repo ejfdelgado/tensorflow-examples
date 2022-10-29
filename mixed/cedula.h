@@ -11,8 +11,12 @@
 // Si en las rotaciones ninguno tiene un minimos score de 70 se termina
 // Recortar también los nombres y apellidos
 
-std::string extractText(cv::Mat dilate_dst, float xxi, float yyi, float xxf, float yyf, float CEDULA_WIDTH, float CEDULA_HEIGHT, std::string folderTrain, int dpi, float UMBRAL, bool isNumber, std::string roiPath)
+std::string extractText(cv::Mat dilate_dst, float* theROI, float CEDULA_WIDTH, float CEDULA_HEIGHT, std::string folderTrain, int dpi, float UMBRAL, bool isNumber, std::string roiPath)
 {
+    float xxi = theROI[0] / CEDULA_WIDTH;
+    float yyi = theROI[1] / CEDULA_HEIGHT;
+    float xxf = theROI[2] / CEDULA_WIDTH;
+    float yyf = theROI[3] / CEDULA_HEIGHT;
     // std::cout << xxi << ", " << yyi << ", " << xxf << ", " << yyf << std::endl;
     tesseract::TessBaseAPI *ocr = new tesseract::TessBaseAPI();
     // https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html
@@ -299,10 +303,7 @@ void postProcessCedula(
     float ROI_NAME[4] = {0, 267, WIDTH_NAMES, 348};
     
     std::string apellidos = extractText(dest, 
-        ROI_LAST_NAME[0] / CEDULA_WIDTH, 
-        ROI_LAST_NAME[1] / CEDULA_HEIGHT, 
-        ROI_LAST_NAME[2] / CEDULA_WIDTH, 
-        ROI_LAST_NAME[3] / CEDULA_HEIGHT, 
+        ROI_LAST_NAME,
         CEDULA_WIDTH, 
         CEDULA_HEIGHT, 
         TRAINED_FOLDER, 
@@ -310,20 +311,14 @@ void postProcessCedula(
     apellidos = cleanText(apellidos);
 
     std::string nombres = extractText(dest, 
-        ROI_NAME[0] / CEDULA_WIDTH, 
-        ROI_NAME[1] / CEDULA_HEIGHT, 
-        ROI_NAME[2] / CEDULA_WIDTH, 
-        ROI_NAME[3] / CEDULA_HEIGHT, 
+        ROI_NAME,
         CEDULA_WIDTH, 
         CEDULA_HEIGHT, 
         TRAINED_FOLDER, dpi, 90, false, roiLastNamePath);
     nombres = cleanText(nombres);
 
     std::string numCedula = extractText(dilate_dst, 
-        ROI_ID[0] / CEDULA_WIDTH, 
-        ROI_ID[1] / CEDULA_HEIGHT, 
-        ROI_ID[2] / CEDULA_WIDTH, 
-        ROI_ID[3] / CEDULA_HEIGHT, 
+        ROI_ID,
         CEDULA_WIDTH, 
         CEDULA_HEIGHT, 
         TRAINED_FOLDER, 
