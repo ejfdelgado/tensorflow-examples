@@ -159,7 +159,7 @@ std::string ocrFunNum(
         scoreThreshold,
         sth,
         nmsth,
-        outfolder);
+        outfolder + "num_");
     uint num_total = ocrNumbers.size();
     std::sort(ocrNumbers.begin(), ocrNumbers.end(), firstSegResLeft);
     std::cout << "numeros: " << num_total << std::endl;
@@ -396,7 +396,7 @@ void postProcessCedula(
         scoreThreshold,
         sth,
         nmsth,
-        outfolder
+        outfolder + "last_"
     );
 
     std::string myName = ocrFunTxt(
@@ -409,10 +409,8 @@ void postProcessCedula(
         scoreThreshold,
         sth,
         nmsth,
-        outfolder
+        outfolder + "name_"
     );
-
-    //cv::imwrite(roiIdPath.c_str(), roiId);
 
     std::vector<cv::Point2f> sourcePointsPhoto;
     sourcePointsPhoto.push_back(cv::Point2f(CEDULA_WIDTH * 541.f / 950.f, CEDULA_HEIGHT * 70.f / 650.f));
