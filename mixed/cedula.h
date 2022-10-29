@@ -289,23 +289,41 @@ void postProcessCedula(
     cv::Mat dilate_dst = closing(dest, 1);
     //cv::imwrite(ocrPath.c_str(), dilate_dst);
 
-    float ROI_ID_X1 = 116;
-    float ROI_ID_Y1 = 128;
-    float ROI_ID_X2 = 501;
-    float ROI_ID_Y2 = 222;//214
+    // Xi, Yi, Xf, Yf...
+    float ROI_ID[4] = {116, 128, 501, 222};//{116, 128, 501, 214}
     float CONFIDENCE_ID = 96;
 
-    // 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT, 100.f/CEDULA_WIDTH, 100.f/CEDULA_HEIGHT
-    float gap = 0.01;
-    std::string apellidos = extractText(dest, 0.0105263-gap, 0.363077-gap*4, 0.581053+gap, 0.447692+gap*4, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90, false, roiNamePath);
+    float gap = 0.85;
+    float WIDTH_NAMES = 502 * gap;
+    float ROI_LAST_NAME[4] = {0, 177, WIDTH_NAMES, 268};
+    float ROI_NAME[4] = {0, 267, WIDTH_NAMES, 348};
+    
+    std::string apellidos = extractText(dest, 
+        ROI_LAST_NAME[0] / CEDULA_WIDTH, 
+        ROI_LAST_NAME[1] / CEDULA_HEIGHT, 
+        ROI_LAST_NAME[2] / CEDULA_WIDTH, 
+        ROI_LAST_NAME[3] / CEDULA_HEIGHT, 
+        CEDULA_WIDTH, 
+        CEDULA_HEIGHT, 
+        TRAINED_FOLDER, 
+        dpi, 90, false, roiNamePath);
     apellidos = cleanText(apellidos);
-    std::string nombres = extractText(dest, 0.0115789-gap, 0.506154-gap*2, 0.587368+gap, 0.593846+gap*4, CEDULA_WIDTH, CEDULA_HEIGHT, TRAINED_FOLDER, dpi, 90, false, roiLastNamePath);
+
+    std::string nombres = extractText(dest, 
+        ROI_NAME[0] / CEDULA_WIDTH, 
+        ROI_NAME[1] / CEDULA_HEIGHT, 
+        ROI_NAME[2] / CEDULA_WIDTH, 
+        ROI_NAME[3] / CEDULA_HEIGHT, 
+        CEDULA_WIDTH, 
+        CEDULA_HEIGHT, 
+        TRAINED_FOLDER, dpi, 90, false, roiLastNamePath);
     nombres = cleanText(nombres);
+
     std::string numCedula = extractText(dilate_dst, 
-        ROI_ID_X1 / CEDULA_WIDTH, 
-        ROI_ID_Y1 / CEDULA_HEIGHT, 
-        ROI_ID_X2 / CEDULA_WIDTH, 
-        ROI_ID_Y2 / CEDULA_HEIGHT, 
+        ROI_ID[0] / CEDULA_WIDTH, 
+        ROI_ID[1] / CEDULA_HEIGHT, 
+        ROI_ID[2] / CEDULA_WIDTH, 
+        ROI_ID[3] / CEDULA_HEIGHT, 
         CEDULA_WIDTH, 
         CEDULA_HEIGHT, 
         TRAINED_FOLDER, 
@@ -317,10 +335,10 @@ void postProcessCedula(
     
     std::string myOCR = ocrFunNum(
         dest, 
-        ROI_ID_X1, 
-        ROI_ID_Y1, 
-        ROI_ID_X2, 
-        ROI_ID_Y2, 
+        ROI_ID[0], 
+        ROI_ID[1], 
+        ROI_ID[2], 
+        ROI_ID[3], 
         class_names, 
         modelPathString,
         modeString,
