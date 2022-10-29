@@ -83,6 +83,34 @@ bool firstSegResLeft(const SegRes &a, const SegRes &b)
   return b.cx > a.cx;
 }
 
+void computeConnectedCharacters(
+    std::vector<SegRes>& ocrCharaters, 
+    std::vector<SegRes>& letrasConectadas, 
+    float cx, 
+    float cy, 
+    float maxDistance
+    ) {
+        if (ocrCharaters.size() == 0) { return; }
+        uint k = 0;
+        do {
+            SegRes temp = ocrCharaters[k];
+            float distance = sqrt(pow((temp.cx - cx), 2) + pow((temp.cy - cy), 2));
+            if (distance < maxDistance) {
+                temp.connected = true;
+                letrasConectadas.push_back(temp);
+                ocrCharaters.erase(ocrCharaters.begin() + k);
+            } else {
+                k++;
+            }
+        } while (k < ocrCharaters.size());
+        //std::cout << "Conectadas: ";
+        for (uint k=0; k<letrasConectadas.size(); k++) {
+            SegRes temp = letrasConectadas[k];
+            //std::cout << temp.c;
+        }
+        //std::cout << std::endl;
+}
+
 std::string ocrFunTxt(
     cv::Mat dest, 
     float* ROI_ID,
@@ -118,13 +146,111 @@ std::string ocrFunTxt(
     uint letras_total = ocrCharaters.size();
     std::sort(ocrCharaters.begin(), ocrCharaters.end(), firstSegResLeft);
     std::cout << "Letras:";
-    for (int k=0; k<letras_total; k++) {
+    // 1.1. Buscar la mediana en X y Y de los centros, con esto tengo el centro de la frase
+    float num_avg_w = 0;
+    float num_avg_h = 0;
+    float num_med_cx = -1;
+    float num_med_cy = -1;
+    float num_med_w = -1;
+    float num_med_h = -1;
+    std::vector<float> num_med_cx_arr;
+    std::vector<float> num_med_cy_arr;
+    std::vector<float> num_med_w_arr;
+    std::vector<float> num_med_h_arr;
+    for (uint k=0; k<letras_total; k++) {
         SegRes temp = ocrCharaters[k];
         std::string letra = temp.c;
         std::cout << letra;
+        float w = temp.xf - temp.xi;
+        float h = temp.yf - temp.yi;
+        num_avg_w += w;
+        num_avg_h += h;
+        num_med_cx_arr.push_back(temp.cx);
+        num_med_cy_arr.push_back(temp.cy);
+        num_med_w_arr.push_back(w);
+        num_med_h_arr.push_back(h);
     }
     std::cout << std::endl;
-    return "";
+    // ordeno los vectores
+    std::sort(num_med_cx_arr.begin(), num_med_cx_arr.end());
+    std::sort(num_med_cy_arr.begin(), num_med_cy_arr.end());
+    std::sort(num_med_w_arr.begin(), num_med_w_arr.end());
+    std::sort(num_med_h_arr.begin(), num_med_h_arr.end());
+    // calculo la mitad
+    uint ix_mitad_x = ceil(((float)num_med_cx_arr.size())/2.0f);
+    uint ix_mitad_y = ceil(((float)num_med_cy_arr.size())/2.0f);
+    uint ix_mitad_w = ceil(((float)num_med_w_arr.size())/2.0f);
+    uint ix_mitad_h = ceil(((float)num_med_h_arr.size())/2.0f);
+    num_med_cx = num_med_cx_arr[ix_mitad_x];
+    num_med_cy = num_med_cy_arr[ix_mitad_y];
+    num_med_w = num_med_w_arr[ix_mitad_w];
+    num_med_h = num_med_h_arr[ix_mitad_h];
+    
+    num_avg_w = num_avg_w / ((float)letras_total);
+    num_avg_h = num_avg_h / ((float)letras_total);
+    std::cout << "characters avgs: " << num_avg_w << " x " << num_avg_h << std::endl;
+    std::cout << "characters median center: " << num_med_cx << " x " << num_med_cy << std::endl;
+    std::cout << "characters median size: " << num_med_w << " x " << num_med_h << std::endl;
+
+    // 1.2. Buscar las letras conectadas partiendo desde el centro segun la mediana
+    std::vector<SegRes> letrasConectadas;
+
+    // funcion que saque del vector original los elementos cercanos
+    // Se inicializan las banderas
+    for (uint k=0; k<letras_total; k++) {
+        SegRes temp = ocrCharaters[k];
+        temp.checked = false;
+        temp.connected = false;
+    }
+
+    float DISTANCIA_CONECTADA = num_med_h;
+    float UMBRAL_ESPACIO = 0;
+
+    computeConnectedCharacters(ocrCharaters, letrasConectadas, num_med_cx, num_med_cy, DISTANCIA_CONECTADA);
+    uint conectadosSinCheck;
+    do {
+        conectadosSinCheck = 0;
+        std::vector<uint> letrasActuales;
+        for (uint k=0; k<letrasConectadas.size(); k++) {
+            SegRes temp = letrasConectadas[k];
+            if (temp.connected && !temp.checked) {
+                letrasActuales.push_back(k);
+                conectadosSinCheck++;
+            }
+        }
+        for (uint k=0; k<letrasActuales.size(); k++) {
+            uint indice = letrasActuales[k];
+            SegRes temp = letrasConectadas[indice];
+            computeConnectedCharacters(ocrCharaters, letrasConectadas, temp.cx, temp.cy, DISTANCIA_CONECTADA);
+            letrasConectadas[indice].checked = true;
+        }
+    } while(conectadosSinCheck > 0);
+
+    // Se deben agregar los espacios
+    // Se organiza de izquierda a derecha
+    std::sort(letrasConectadas.begin(), letrasConectadas.end(), firstSegResLeft);
+    // Se evalua la distancia entre el caracter actual y el siguiente
+    uint tamanioConectados = letrasConectadas.size();
+    std::string completo = "";
+    for (uint k=0; k<tamanioConectados; k++) {
+        SegRes temp = letrasConectadas[k];
+        if (k < tamanioConectados - 1) {
+            // Si no es el último caracter
+            SegRes siguiente = letrasConectadas[k+1];
+            // Calculo la distancia
+            int espacio = ((int)siguiente.xi - (int)temp.xf);
+            //std::cout << "Espacio entre " << temp.c << siguiente.c << " es " << espacio << std::endl;
+            if (espacio > UMBRAL_ESPACIO) {
+                completo+=temp.c+" ";
+            } else {
+                completo += temp.c;
+            }
+        } else {
+            completo += temp.c;
+        }
+    }
+
+    return completo;
 }
 
 std::string ocrFunNum(
@@ -436,9 +562,9 @@ void postProcessCedula(
     myfile << "\",\n\t\"id\":\"";
     myfile << myOCR;
     myfile << "\",\n\t\"names\":\"";
-    myfile << nombres;
+    myfile << myName;
     myfile << "\",\n\t\"lastnames\":\"";
-    myfile << apellidos;
+    myfile << myLastName;
     myfile << "\",\n\t\"photoPath\":\"";
     myfile << photoPath;
     myfile << "\",\n\t\"signaturePath\":\"";

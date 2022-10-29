@@ -28,6 +28,8 @@ struct SegRes
   float cy;
   std::string c;
   float v;
+  bool checked;
+  bool connected;
 };
 
 #define TFLITE_MINIMAL_CHECK(x)                              \
