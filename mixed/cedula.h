@@ -421,6 +421,186 @@ std::string ocrFunNum(
     return myOCR;
 }
 
+float computeVariance(std::vector<float> samples)
+{
+     int size = samples.size();
+
+     float variance = 0;
+     float t = samples[0];
+     for (int i = 1; i < size; i++)
+     {
+          t += samples[i];
+          float diff = ((i + 1) * samples[i]) - t;
+          variance += (diff * diff) / ((i + 1.0) *i);
+     }
+
+     return variance / (size - 1);
+}
+
+// , std::vector& rh, std::vector& gh, std::vector& bh
+float computeHistogram(cv::Mat src) {
+    std::vector<cv::Mat> bgr_planes;
+    cv::split( src, bgr_planes );
+    int histSize = 10;
+    float range[] = { 0, 256 }; //the upper boundary is exclusive
+    const float* histRange[] = { range };
+    bool uniform = true, accumulate = false;
+    cv::Mat b_hist, g_hist, r_hist;
+    cv::calcHist( &bgr_planes[0], 1, 0, cv::Mat(), b_hist, 1, &histSize, histRange, uniform, accumulate );
+    cv::calcHist( &bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &histSize, histRange, uniform, accumulate );
+    cv::calcHist( &bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &histSize, histRange, uniform, accumulate );
+    int hist_w = 512, hist_h = 400;
+    int bin_w = cvRound( (double) hist_w/histSize );
+    cv::Mat histImage( hist_h, hist_w, CV_8UC3, cv::Scalar( 0,0,0) );
+    cv::normalize(b_hist, b_hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat() );
+    cv::normalize(g_hist, g_hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat() );
+    cv::normalize(r_hist, r_hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat() );
+
+    std::vector<float> varianzas;
+    float sumaVarianza = 0;
+    for (uint i = 1; i < histSize; i++ ) {
+        float r = r_hist.at<float>(i-1);
+        float g = g_hist.at<float>(i-1);
+        float b = b_hist.at<float>(i-1);
+        std::vector<float> colores;
+        colores.push_back(r);
+        colores.push_back(g);
+        colores.push_back(b);
+        float variance = computeVariance(colores);
+        //std::cout << variance << ";" << r << ";" << g << ";" << b << std::endl;
+        varianzas.push_back(variance);
+        sumaVarianza += variance;
+    }
+
+    return sumaVarianza / (float) histSize;
+    /*
+    std::sort(varianzas.begin(), varianzas.end());
+    // calculo la mitad
+    uint varianzasMitad = ceil(((float)varianzas.size())/2.0f);
+
+    float medianaVarianza = varianzas[varianzasMitad];
+    //std::cout << "VarianzaColor:" << medianaVarianza << std::endl;
+    return medianaVarianza;
+    */
+}
+
+double medirDistancia(unsigned char *input, uint step, int i, int j, unsigned char r, unsigned char g, unsigned char b) {
+    unsigned char r2 = input[step * j + i ] ;
+    unsigned char g2 = input[step * j + i + 1] ;
+    unsigned char b2 = input[step * j + i + 2] ;
+    double distance = sqrt(pow(r2 - r, 2) + pow(g2 - g, 2) + pow(b2 - b, 2));
+    return distance;
+}
+
+std::vector<double> computeHistogramOfComponent(cv::Mat src) {
+
+    cv::Mat hsv;
+    std::vector<cv::Mat> channels;
+    cvtColor(src,hsv,cv::COLOR_BGR2HSV_FULL);
+    split(hsv,channels);
+    cv::Mat saturation = channels[1];
+    cv::Mat hue = channels[0];
+    std::vector<unsigned char> hueTodos;
+
+    double ravg = 0;
+    double gavg = 0;
+    double bavg = 0;
+    double count = 0;
+    double distanciaPromedio = 0;
+    double distanciaPromedioNo = 0;
+    double temp;
+    unsigned char *input = (unsigned char*)(src.data);
+    unsigned char *saturationPixel = (unsigned char*)(saturation.data);
+    unsigned char *huePixel = (unsigned char*)(hue.data);
+    uint step = src.step;
+    for(int j = 0;j < src.rows-1;j++){
+        for(int i = 0;i < src.cols-1;i++){
+            unsigned char r = input[step * j + i ] ;
+            unsigned char g = input[step * j + i + 1] ;
+            unsigned char b = input[step * j + i + 2] ;
+            float importancia = ((float)saturationPixel[saturation.step * j + i ])/255.0;
+            unsigned char theHue = huePixel[hue.step * j + i ];
+            hueTodos.push_back(theHue);
+            
+            temp = medirDistancia(input, step, i+1, j+1, r, g, b);
+            distanciaPromedio += importancia*temp;
+            distanciaPromedioNo += temp;
+            count++;
+
+            temp = medirDistancia(input, step, i, j+1, r, g, b);
+            distanciaPromedio += importancia*temp;
+            distanciaPromedioNo += temp;
+            count++;
+
+            temp = medirDistancia(input, step, i+1, j, r, g, b);
+            distanciaPromedio += importancia*temp;
+            distanciaPromedioNo += temp;
+            count++;
+
+            if (i>0) {
+                temp = medirDistancia(input, step, i-1, j+1, r, g, b);
+                distanciaPromedio += importancia*temp;
+                distanciaPromedioNo += temp;
+                count++;
+            }
+            if (j>0) {
+                temp = medirDistancia(input, step, i+1, j-1, r, g, b);
+                distanciaPromedio += importancia*temp;
+                distanciaPromedioNo += temp;
+                count++;
+            }
+        }
+    }
+
+    double sum = 0;
+    std::for_each (std::begin(hueTodos), std::end(hueTodos), [&](const unsigned char d) {
+        sum += d;
+    });
+    double mediaHue =  sum / hueTodos.size();
+
+    double accum = 0.0;
+    std::for_each (std::begin(hueTodos), std::end(hueTodos), [&](const unsigned char d) {
+        accum += (d - mediaHue) * (d - mediaHue);
+    });
+    double stdev = sqrt(accum / (hueTodos.size()-1));
+
+    distanciaPromedio = distanciaPromedio / count;
+    distanciaPromedioNo = distanciaPromedioNo / count;
+
+    std::vector<double> salida;
+    salida.push_back(distanciaPromedio);
+    salida.push_back(distanciaPromedioNo);
+    salida.push_back(stdev);
+    return  salida;
+}
+
+cv::Mat equalizeBGRA(const cv::Mat& inputImage)
+{
+    cv::Mat ycrcb;
+    cv::Mat result;
+    std::vector<cv::Mat> channels;
+
+    result = inputImage;
+    
+    cvtColor(result,ycrcb,cv::COLOR_BGR2YCrCb);//COLOR_BGR2YCrCb COLOR_BGR2HSV
+    split(ycrcb,channels);
+    equalizeHist(channels[0], channels[0]);
+    equalizeHist(channels[1], channels[1]);
+    equalizeHist(channels[2], channels[2]);
+    merge(channels,ycrcb);
+    cvtColor(ycrcb, result, cv::COLOR_YCrCb2BGR);//COLOR_YCrCb2BGR COLOR_HSV2BGR
+    
+    /*
+    cvtColor(result,ycrcb,cv::COLOR_BGR2HSV_FULL);//COLOR_BGR2YCrCb COLOR_BGR2HSV
+    split(ycrcb,channels);
+    equalizeHist(channels[2], channels[2]);
+    merge(channels,ycrcb);
+    cvtColor(ycrcb, result, cv::COLOR_HSV2BGR_FULL);//COLOR_YCrCb2BGR COLOR_HSV2BGR
+    */
+
+    return result;
+}
+
 void postProcessCedula(
     cv::Mat src,
     std::vector<cv::Point2f> sourcePoints,
@@ -443,6 +623,7 @@ void postProcessCedula(
 {
     std::string photoPath;
     std::string signaturePath;
+    std::string signaturePathEq;
     std::string normalizedImage;
     std::string jsonPath;
     std::string ocrPath;
@@ -455,6 +636,7 @@ void postProcessCedula(
     }
     photoPath = outfolder + "photo.jpg";
     signaturePath = outfolder + "signature.jpg";
+    signaturePathEq = outfolder + "signature_eq.jpg";
     normalizedImage = outfolder + "normalized.jpg";
     jsonPath = outfolder + "actual.json";
     ocrPath = outfolder + "ocr.jpg";
@@ -540,8 +722,26 @@ void postProcessCedula(
     sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 515.f / 950.f, CEDULA_HEIGHT * 428.f / 650.f));
     sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 45.f / 950.f, CEDULA_HEIGHT * 586.f / 650.f));
     sourcePointsSign.push_back(cv::Point2f(CEDULA_WIDTH * 515.f / 950.f, CEDULA_HEIGHT * 586.f / 650.f));
-    cv::Mat signatureImage = cutImage(dest, sourcePointsSign, 470, 158);
+    int signatureWidth = 470;
+    int signatureHeight = 158;
+    cv::Mat signatureImage = cutImage(dest, sourcePointsSign, signatureWidth, signatureHeight);
     cv::imwrite(signaturePath.c_str(), signatureImage);
+
+    cv::Mat checkImage = dest(cv::Range(dest.size().height*0.5,dest.size().height), cv::Range(0,dest.size().width*0.5));
+    cv::Mat equalizedSignature = equalizeBGRA(checkImage);
+    cv::Mat checkImageMedian;
+    cv::medianBlur(equalizedSignature, checkImageMedian, 15);
+    
+    cv::Mat equalizedSignatureScaled;
+    cv::resize(checkImageMedian, equalizedSignatureScaled, cv::Size(10, 6), 0, 0, cv::INTER_LINEAR);
+    cv::imwrite(signaturePathEq.c_str(), equalizedSignatureScaled);
+    
+    std::vector<double> valores = computeHistogramOfComponent(equalizedSignatureScaled);
+    std::cout << "stddev" << (int)valores[2] << std::endl;
+    int esFotocopia = 0;
+    if (valores[2] < 60) {
+        esFotocopia = 1;
+    }
 
     std::ofstream myfile;
     myfile.open(jsonPath.c_str(), std::ios::trunc);
@@ -560,6 +760,14 @@ void postProcessCedula(
     myfile << signaturePath;
     myfile << "\",\n\t\"normalized\":\"";
     myfile << normalizedImage;
+    myfile << "\",\n\t\"color1\":\"";
+    myfile << (int)valores[0];
+    myfile << "\",\n\t\"color2\":\"";
+    myfile << (int)valores[1];
+    myfile << "\",\n\t\"color3\":\"";
+    myfile << (int)valores[2];
+    myfile << "\",\n\t\"fotocopia\":\"";
+    myfile << esFotocopia;
     myfile << "\"\n}" << std::endl;
 
     myfile.close();
