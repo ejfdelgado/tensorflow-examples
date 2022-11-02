@@ -206,7 +206,8 @@ void computeHigherRotation(
   std::string model = modelPathString + "/cedulas_vaale-fp16.tflite";
   std::string model2 = modelPathString + "/cedulas_vaale2-fp16.tflite";
   std::string model3 = modelPathString + "/roi_ids1-fp16.tflite";
-  std::string model4 = modelPathString + "/letras1-fp16.tflite";
+  //std::string model4 = modelPathString + "/letras1-fp16.tflite";
+  std::string model4 = "/tmp/letras1-fp16.tflite";
 
   uint sizeScaled = 512;
 
